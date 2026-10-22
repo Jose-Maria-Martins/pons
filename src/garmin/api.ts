@@ -1,6 +1,19 @@
 // Read-only access to the Garmin Connect data API with a DI bearer token.
 
-import { chunks, dayRow, first, pick, sleepRows, slim } from "./shape.js";
+import {
+  activityRow,
+  chunks,
+  dailyRows,
+  dayRow,
+  first,
+  hrvRows,
+  pick,
+  recordRows,
+  sleepRows,
+  slim,
+  timelineBuckets,
+  workoutRows,
+} from "./shape.js";
 
 export const API_BASE = "https://connectapi.garmin.com";
 
@@ -45,6 +58,11 @@ export class GarminError extends Error {
 
 type Json = Record<string, unknown>;
 
+const ACTIVITY_PAGE_SIZE = 20;
+const MAX_ACTIVITY_PAGES = 10;
+
+const isUnavailable = (v: unknown) => typeof v === "object" && v !== null && "unavailable" in v;
+
 export class GarminApi {
   constructor(private readonly props: Props) {}
 
@@ -83,7 +101,7 @@ export class GarminApi {
     }
   }
 
-  // -- The three tools -------------------------------------------------------
+  // -- Tools -----------------------------------------------------------------
 
   async connectionStatus(): Promise<Json> {
     const profile = await this.get("/userprofile-service/socialProfile");
@@ -168,5 +186,120 @@ export class GarminApi {
     }
     const sorted = [...byDate.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([, row]) => row);
     return sleepRows(sorted);
+  }
+
+  async dailyTrends(start: string, end: string): Promise<Json[]> {
+    // One call covers up to 28 days.
+    const rows: Json[] = [];
+    for (const [s, e] of chunks(start, end, 28)) {
+      rows.push(...dailyRows(await this.get("/usersummary-service/v2/dailysummaries", { startDate: s, endDate: e })));
+    }
+    return rows;
+  }
+
+  async hrvHistory(start: string, end: string): Promise<Json[]> {
+    const rows: Json[] = [];
+    for (const [s, e] of chunks(start, end, 28)) {
+      rows.push(...hrvRows(await this.get(`/hrv-service/hrv/daily/${s}/${e}`)));
+    }
+    return rows;
+  }
+
+  async sleepNightDetail(date: string): Promise<unknown> {
+    const name = encodeURIComponent(this.props.displayName);
+    return slim(await this.get(`/wellness-service/wellness/dailySleepData/${name}`, { date, nonSleepBufferMinutes: 60 }));
+  }
+
+  /** Workouts in a range. Garmin pages by 20; at most MAX_ACTIVITY_PAGES pages (calls) are read. */
+  async activities(start: string, end: string, activityType?: string): Promise<Json[]> {
+    const rows: Json[] = [];
+    for (let page = 0; page < MAX_ACTIVITY_PAGES; page++) {
+      const batch = await this.get("/activitylist-service/activities/search/activities", {
+        startDate: start,
+        endDate: end,
+        start: page * ACTIVITY_PAGE_SIZE,
+        limit: ACTIVITY_PAGE_SIZE,
+        ...(activityType ? { activityType } : {}),
+      });
+      if (!Array.isArray(batch) || batch.length === 0) return rows;
+      rows.push(...batch.map(activityRow));
+      if (batch.length < ACTIVITY_PAGE_SIZE) return rows;
+    }
+    rows.push({ note: `Showing the first ${rows.length} activities; there may be more. Ask for a shorter date range.` });
+    return rows;
+  }
+
+  async activityDetail(id: string): Promise<Json> {
+    const base = `/activity-service/activity/${id}`;
+    const [activity, splits, zones, weather] = await Promise.all([
+      this.tryGet(base),
+      this.tryGet(`${base}/splits`),
+      this.tryGet(`${base}/hrTimeInZones`),
+      this.tryGet(`${base}/weather`),
+    ]);
+    const a = (activity ?? {}) as Json;
+    const sp = (splits ?? {}) as Json;
+    const summary = a.summaryDTO;
+    const laps = sp.lapDTOs;
+    return {
+      name: a.activityName ?? null,
+      summary: slim(summary && Object.keys(summary).length ? summary : a),
+      laps: slim(Array.isArray(laps) && laps.length ? laps : sp, 40),
+      hr_zones: slim(zones),
+      weather: slim(weather),
+    };
+  }
+
+  async trainingStatus(date: string): Promise<Json> {
+    const name = encodeURIComponent(this.props.displayName);
+    const [status, readiness, maxMetrics, races, endurance, fitnessAge] = await Promise.all([
+      this.tryGet(`/metrics-service/metrics/trainingstatus/aggregated/${date}`),
+      this.tryGet(`/metrics-service/metrics/trainingreadiness/${date}`),
+      this.tryGet(`/metrics-service/metrics/maxmet/daily/${date}/${date}`),
+      this.tryGet(`/metrics-service/metrics/racepredictions/latest/${name}`),
+      this.tryGet("/metrics-service/metrics/endurancescore", { calendarDate: date }),
+      this.tryGet(`/fitnessage-service/fitnessage/${date}`),
+    ]);
+    return {
+      training_status: slim(status),
+      readiness: slim(readiness),
+      max_metrics: slim(maxMetrics),
+      race_predictions: slim(races),
+      endurance_score: slim(endurance),
+      fitness_age: slim(fitnessAge),
+    };
+  }
+
+  /** Weight and body composition for a range, from Garmin's weight service (one call). */
+  async bodyComposition(start: string, end: string): Promise<unknown> {
+    return slim(await this.get("/weight-service/weight/dateRange", { startDate: start, endDate: end }));
+  }
+
+  /** One day of heart rate, stress, Body Battery and steps in 15-minute buckets. */
+  async dayTimeline(date: string): Promise<Json> {
+    const name = encodeURIComponent(this.props.displayName);
+    const [heart, stress, steps] = await Promise.all([
+      this.tryGet(`/wellness-service/wellness/dailyHeartRate/${name}`, { date }),
+      this.tryGet(`/wellness-service/wellness/dailyStress/${date}`),
+      this.tryGet(`/wellness-service/wellness/dailySummaryChart/${name}`, { date }),
+    ]);
+    const usable = (v: unknown) => (isUnavailable(v) ? undefined : v);
+    const missing = Object.entries({ heart_rate: heart, stress_and_body_battery: stress, steps })
+      .filter(([, v]) => isUnavailable(v))
+      .map(([k]) => k);
+    return {
+      date,
+      ...timelineBuckets(usable(heart), usable(stress), usable(steps)),
+      ...(missing.length ? { unavailable: missing } : {}),
+    };
+  }
+
+  async personalRecords(): Promise<Json[]> {
+    const name = encodeURIComponent(this.props.displayName);
+    return recordRows(await this.get(`/personalrecord-service/personalrecord/prs/${name}`));
+  }
+
+  async plannedWorkouts(start: string, end: string): Promise<Json[]> {
+    return workoutRows(await this.get("/workout-service/schedule/workoutScheduleByPeriod", { startDate: start, endDate: end }));
   }
 }
