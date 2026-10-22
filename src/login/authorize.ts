@@ -4,6 +4,7 @@
 // Logs hold outcome names only.
 
 import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
+import { platformOf, track } from "../analytics.js";
 import { hmacHex } from "../crypto.js";
 import type { Props } from "../garmin/api.js";
 import { garminLogin, garminVerifyMfa, type LoginFailure, type LoginResult } from "./garmin.js";
@@ -32,7 +33,11 @@ const EXPIRED = "This sign-in page expired. Go back to Claude and try connecting
 const NO_PERSON = "We couldn't confirm you're a person. Please try again.";
 const TOO_MANY = "Too many tries. Wait a few minutes and try again.";
 
-const logLogin = (outcome: string) => console.log(JSON.stringify({ pons_login: outcome }));
+/** Log and count the outcome of a sign-in step. Outcome names only: nothing about the person. */
+function logLogin(env: Env, request: Request, outcome: string) {
+  console.log(JSON.stringify({ pons_login: outcome }));
+  track(env, { type: "login", name: outcome, platform: platformOf(request.headers.get("User-Agent")) });
+}
 
 async function verifyTurnstile(token: string, ip: string, secret: string): Promise<boolean> {
   if (!token) return false;
@@ -53,7 +58,7 @@ async function verifyTurnstile(token: string, ip: string, secret: string): Promi
 async function gate(request: Request, env: Env, turnstileToken: string, accountKey: string): Promise<string | undefined> {
   const ip = request.headers.get("CF-Connecting-IP") ?? "unknown";
   if (!(await verifyTurnstile(turnstileToken, ip, env.TURNSTILE_SECRET))) {
-    logLogin("turnstile_failed");
+    logLogin(env, request, "turnstile_failed");
     return NO_PERSON;
   }
   const [byIp, byAccount] = await Promise.all([
@@ -61,7 +66,7 @@ async function gate(request: Request, env: Env, turnstileToken: string, accountK
     env.LOGIN_LIMIT.limit({ key: accountKey }),
   ]);
   if (!byIp.success || !byAccount.success) {
-    logLogin("rate_limited_here");
+    logLogin(env, request, "rate_limited_here");
     return TOO_MANY;
   }
   return undefined;
@@ -97,10 +102,11 @@ async function finish(
   login: Extract<LoginResult, { ok: true }>,
   headers: Headers,
 ): Promise<Response> {
-  const props: Props = { garmin: login.auth, displayName: login.displayName };
+  const userId = await hmacHex(env.HASH_KEY, "garmin:" + login.garminId);
+  const props: Props = { garmin: login.auth, displayName: login.displayName, userId };
   const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
     request,
-    userId: await hmacHex(env.HASH_KEY, "garmin:" + login.garminId),
+    userId,
     metadata: {},
     scope: request.scope,
     props,
@@ -130,12 +136,12 @@ async function handleMfaCode(request: Request, env: Env, nonce: string, field: (
 
   const result = await garminVerifyMfa(state, code);
   if (result.ok) {
-    logLogin("mfa_ok");
+    logLogin(env, request, "mfa_ok");
     await deleteMfaState(env, handle);
     return finish(env, state.request, result, new Headers({ "Cache-Control": "no-store", "Set-Cookie": clearMfaCookie() }));
   }
   if (result.reason === "bad_code") {
-    logLogin("bad_code");
+    logLogin(env, request, "bad_code");
     const attempts = state.attempts + 1;
     if (attempts >= MFA_MAX_ATTEMPTS) {
       await deleteMfaState(env, handle);
@@ -145,7 +151,7 @@ async function handleMfaCode(request: Request, env: Env, nonce: string, field: (
     const left = MFA_MAX_ATTEMPTS - attempts;
     return form(`That code didn't work. You have ${left} ${left === 1 ? "try" : "tries"} left.`);
   }
-  logLogin(result.reason);
+  logLogin(env, request, result.reason);
   return form(MESSAGES[result.reason === "mfa_required" ? "unavailable" : result.reason]);
 }
 
@@ -182,11 +188,11 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
 
   const result = await garminLogin(email, password);
   if (result.ok) {
-    logLogin("ok");
+    logLogin(env, request, "ok");
     return finish(env, approved.request, result, new Headers(approved.headers));
   }
   if (result.reason === "mfa_required") {
-    logLogin("mfa_required");
+    logLogin(env, request, "mfa_required");
     const mfaHandle = newMfaHandle();
     await saveMfaState(env, mfaHandle, {
       ...result.pending,
@@ -201,6 +207,6 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
     res.headers.append("Set-Cookie", mfaCookie(mfaHandle));
     return res;
   }
-  logLogin(result.reason);
+  logLogin(env, request, result.reason);
   return renderLogin(request, env, nonce, MESSAGES[result.reason === "bad_code" ? "unavailable" : result.reason]);
 }

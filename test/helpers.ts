@@ -85,15 +85,18 @@ export interface Connected {
 // Each connection uses its own address and email, so the login rate limits never get in the way.
 let connections = 0;
 
-/** Full OAuth flow with a fake Garmin. `garminExpiresIn` is how many seconds the fake Garmin token lasts. */
-export async function connect(garminExpiresIn = 3600): Promise<Connected> {
+/**
+ * Full OAuth flow with a fake Garmin. `garminExpiresIn` is how many seconds the fake Garmin token lasts.
+ * `garminGuid` is the fake Garmin account: connections with the same one belong to the same Pons user.
+ */
+export async function connect(garminExpiresIn = 3600, garminGuid = "fake-guid"): Promise<Connected> {
   const n = ++connections;
   const { path, handle, cookie, clientId } = await openLoginPage();
   mockFetch(
     on("https://challenges.cloudflare.com/", () => json({ success: true })),
     on("https://sso.garmin.com/", () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
     on("https://diauth.garmin.com/", () => json({ access_token: "fake-garmin-access", refresh_token: "fake-refresh", expires_in: garminExpiresIn })),
-    on("https://connectapi.garmin.com/userprofile-service/socialProfile", () => json({ displayName: "fake-display-name", garminGUID: "fake-guid", fullName: "Test Person" })),
+    on("https://connectapi.garmin.com/userprofile-service/socialProfile", () => json({ displayName: "fake-display-name", garminGUID: garminGuid, fullName: "Test Person" })),
   );
   const done = await post(path, cookie, { handle, email: `connect${n}@example.com`, password: "fake-password", "cf-turnstile-response": "ok" }, { "CF-Connecting-IP": `192.0.2.${n % 250}` });
   const code = new URL(done.headers.get("Location") ?? "").searchParams.get("code") ?? "";

@@ -12,7 +12,7 @@ describe("/mcp", () => {
     expect(res.headers.get("WWW-Authenticate")).toContain("resource_metadata");
   });
 
-  it("lists every tool, each read-only and with a title", async () => {
+  it("lists every tool with a title, all read-only except disconnect", async () => {
     const { accessToken } = await connect();
     const res = await rpc(accessToken, "tools/list");
     expect(res.status).toBe(200);
@@ -25,6 +25,7 @@ describe("/mcp", () => {
       "daily_overview",
       "daily_trends",
       "day_timeline",
+      "disconnect",
       "hrv_history",
       "personal_records",
       "planned_workouts",
@@ -32,7 +33,9 @@ describe("/mcp", () => {
       "sleep_night_detail",
       "training_status",
     ]);
-    expect(tools.every((t) => t.annotations.readOnlyHint === true)).toBe(true);
+    const [disconnect, others] = [tools.filter((t) => t.name === "disconnect"), tools.filter((t) => t.name !== "disconnect")];
+    expect(others.every((t) => t.annotations.readOnlyHint === true)).toBe(true);
+    expect(disconnect.map((t) => [t.annotations.readOnlyHint, t.annotations.destructiveHint])).toEqual([[false, true]]);
     expect(tools.every((t) => typeof t.title === "string" && t.title.length > 0)).toBe(true);
   });
 

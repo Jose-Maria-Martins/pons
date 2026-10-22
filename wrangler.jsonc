@@ -18,8 +18,15 @@
       "namespace_id": "1001",
       // Cloudflare's rate-limit binding only allows a period of 10 or 60 seconds.
       "simple": { "limit": 5, "period": 60 }
+    },
+    {
+      "name": "TOOL_LIMIT",
+      "namespace_id": "1002",
+      // Per user: keeps one account from getting Pons blocked by Garmin.
+      "simple": { "limit": 60, "period": 60 }
     }
   ],
+  "analytics_engine_datasets": [{ "binding": "PONS_EVENTS", "dataset": "pons_events" }],
   "vars": {
     // Public Turnstile site key for the "Pons" widget. Local dev overrides it with the test key in .dev.vars.
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFhBVqnm5x2-CpZb"

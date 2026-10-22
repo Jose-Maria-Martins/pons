@@ -2,9 +2,9 @@
 
 Talk to your Garmin data from Claude. Pons is a remote [MCP](https://modelcontextprotocol.io) server on Cloudflare Workers: you add it to Claude as a custom connector, sign in to Garmin once, and Claude can then read your sleep, heart rate, stress and Body Battery.
 
-Pons is read-only. No tool writes to your Garmin account.
+Pons is read-only. No tool writes to your Garmin account. The one tool that changes anything is `disconnect`, which deletes your own stored connection.
 
-> Status: milestone 2 in progress. Thirteen read-only tools; sign-in handles 2FA accounts and Garmin tokens are refreshed. Not deployed anywhere by this repository.
+> Status: milestone 2 in progress. Thirteen read-only tools and a `disconnect` tool; sign-in handles 2FA accounts, Garmin tokens are refreshed, tool calls are rate-limited and usage is counted without any health data. Not deployed anywhere by this repository.
 
 ## What it does
 
@@ -23,6 +23,7 @@ Pons is read-only. No tool writes to your Garmin account.
 | `day_timeline` | One day in 15-minute steps (local time): heart rate, stress, Body Battery, steps. |
 | `personal_records` | Personal records (fastest 5 km, longest run, and so on). |
 | `planned_workouts` | Workouts on the Garmin calendar, including training plans (default next 14 days, max 90). |
+| `disconnect` | Deletes your Pons connections and the stored Garmin login. Claude only calls it when you ask. |
 
 ## How it works
 
@@ -30,8 +31,9 @@ Pons is read-only. No tool writes to your Garmin account.
 Claude --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
                           |
                           |- /authorize   sign-in page: Turnstile, rate limits, Garmin login, 2FA code
+                          |- /privacy     what Pons collects and stores
                           |- /token, /register, /.well-known/*   OAuth (workers-oauth-provider)
-                          '- /mcp         stateless MCP server (agents + MCP SDK), 13 tools
+                          '- /mcp         stateless MCP server (agents + MCP SDK), 14 tools
 ```
 
 - **Your password goes to Garmin and nowhere else.** The Worker forwards it once, then drops it. It is never stored or logged.
@@ -41,7 +43,9 @@ Claude --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
 - **Refresh:** when Claude refreshes its Pons token, Pons also refreshes the Garmin token if it has under 3 hours left, so the connection keeps working. If Garmin refuses the refresh, the grant ends and Claude asks you to reconnect; if Garmin is only busy, the grant is kept and Claude tries again later.
 - The sign-in page checks you are a person ([Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)) and limits attempts per IP and per email before it contacts Garmin.
 
-See [SECURITY.md](SECURITY.md) for the threat model.
+- **Limits and counts:** each user gets 60 tool calls per minute. Pons counts tool calls, connections and sign-in outcomes in Cloudflare Analytics Engine, with no health values, emails, names or tokens.
+
+See [SECURITY.md](SECURITY.md) for the threat model and [PRIVACY.md](PRIVACY.md) for exactly what is collected and stored.
 
 ## Local development
 
@@ -89,9 +93,20 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 5. **Deploy:** `npm run deploy`.
 6. **Sign in once yourself:** in claude.ai go to Settings, Connectors, Add custom connector, and enter `https://<your-worker>/mcp`. Sign in to Garmin on the page that opens.
 
+### Usage statistics
+
+`PONS_EVENTS` writes to the Analytics Engine dataset `pons_events` (created on first deploy). [`scripts/stats.sql`](scripts/stats.sql) holds queries for users, calls per tool, calls per platform and per client app, and sign-in outcomes. The SQL API takes one query at a time, with an API token that has the Account Analytics Read permission:
+
+```bash
+curl "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/analytics_engine/sql" \
+  -H "Authorization: Bearer $API_TOKEN" \
+  --data "SELECT blob2 AS tool, SUM(_sample_interval) AS calls FROM pons_events WHERE blob1 = 'tool' GROUP BY tool ORDER BY calls DESC"
+```
+
 ### Known limits
 
 - **Login rate limit:** Cloudflare's rate-limit binding only allows a 10 or 60 second period, so the limit is 5 tries per minute per IP and per email, not per 10 minutes.
+- **Platform guess:** the device kind comes from the User-Agent. Requests that Claude makes from Anthropic's servers may all show up as `other`.
 - **"Today"** is the UTC date.
 - **Some tools are newer and less proven:** `day_timeline`, `personal_records` and `planned_workouts` read Garmin endpoints whose response shapes were written from the garminconnect library's documentation, not checked against a real account yet.
 - Garmin has no public API for this. Pons uses the same endpoints as Garmin's mobile app, which can change without notice.
@@ -100,11 +115,12 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 
 | File | Purpose |
 |---|---|
-| `src/index.ts` | Worker entry: OAuth provider, routes `/mcp` and `/authorize` |
+| `src/index.ts` | Worker entry: OAuth provider, routes `/mcp`, `/authorize` and `/privacy` |
 | `src/login/authorize.ts` | `/authorize` flow: Turnstile, rate limits, Garmin login, finish the grant |
-| `src/login/page.ts` | The sign-in page HTML and its security headers |
+| `src/login/page.ts` | The sign-in and privacy pages and their security headers |
 | `src/login/garmin.ts` | Garmin sign-in: SSO login, 2FA code, token exchange, profile, token refresh |
 | `src/login/mfa.ts` | The half-finished 2FA sign-in: encrypted state in KV and its cookie |
+| `src/analytics.ts` | Usage events for Analytics Engine, platform guess, request context |
 | `src/crypto.ts` | HMAC helper |
 | `src/mcp/server.ts` | MCP server and its tools |
 | `src/garmin/api.ts` | Garmin data calls with the bearer token |

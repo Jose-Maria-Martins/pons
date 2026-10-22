@@ -3,6 +3,7 @@
 import { getMcpAuthContext } from "agents/mcp/server";
 import { McpServer, type CallToolResult } from "@modelcontextprotocol/server";
 import * as z from "zod/v4";
+import { requestContext, track } from "../analytics.js";
 import { GarminApi, GarminError, type Props } from "../garmin/api.js";
 import { dateRange, parseDate, upcomingRange, UserInputError } from "../garmin/shape.js";
 
@@ -19,6 +20,8 @@ records, planned workouts).
   Battery, steps), in the user's local time.
 - Garmin's sleep and HRV for a date refer to the night ending that morning.
 - Weight and body composition come from body_composition.
+- disconnect deletes the user's stored Pons connection and Garmin login. Only call it when the
+  user clearly asks, and confirm first.
 - Explain findings in plain language and compare against the user's own
   baseline rather than population norms. This is not medical advice: suggest a
   doctor for anything that looks like a health concern.
@@ -48,14 +51,72 @@ export function describeError(e: unknown): string {
   return "Something went wrong while reading Garmin data.";
 }
 
-/** Run a tool body and wrap its result (or its failure) as an MCP tool result. */
-export async function runTool(body: () => Promise<unknown>): Promise<CallToolResult> {
+/** The short name of a failure, for the usage statistics. */
+function errorKind(e: unknown): string {
+  if (e instanceof UserInputError) return "invalid_input";
+  if (e instanceof GarminError) return e.kind;
+  return "internal";
+}
+
+/** Run a tool body and wrap its result (or its failure) as an MCP tool result. `onStatus` hears "ok" or the failure's kind. */
+export async function runTool(body: () => Promise<unknown>, onStatus?: (status: string) => void): Promise<CallToolResult> {
   try {
-    return { content: [{ type: "text", text: JSON.stringify(await body()) }] };
+    const result: CallToolResult = { content: [{ type: "text", text: JSON.stringify(await body()) }] };
+    onStatus?.("ok");
+    return result;
   } catch (e) {
+    onStatus?.(errorKind(e));
     return errorResult(describeError(e));
   }
 }
+
+const LIMIT_MESSAGE = "Too many requests to Pons in the last minute. Wait a minute and try again.";
+
+/** One tool call: apply the per-user limit, run the body, and record the outcome (names and timings only). */
+async function call(name: string, body: () => Promise<unknown>): Promise<CallToolResult> {
+  const context = requestContext.getStore();
+  if (!context) return runTool(body);
+  const userId = (getMcpAuthContext()?.props as Partial<Props> | undefined)?.userId;
+  const started = Date.now();
+  let status = "ok";
+  let result: CallToolResult;
+  if (userId && !(await context.env.TOOL_LIMIT.limit({ key: userId })).success) {
+    status = "rate_limited";
+    result = errorResult(LIMIT_MESSAGE);
+  } else {
+    result = await runTool(body, (s) => (status = s));
+  }
+  track(context.env, { type: "tool", name, detail: status, ms: Date.now() - started, platform: context.platform, userId });
+  return result;
+}
+
+/** Revoke every Pons grant of this user, which deletes the stored Garmin login with it. */
+async function disconnect(): Promise<unknown> {
+  const env = requestContext.getStore()?.env;
+  const userId = (getMcpAuthContext()?.props as Partial<Props> | undefined)?.userId;
+  if (!env || !userId) {
+    return {
+      disconnected: false,
+      message: "Pons cannot tell which connection this is yet. Try again in an hour, or remove the Pons connector in Claude's settings.",
+    };
+  }
+  let removed = 0;
+  let cursor: string | undefined;
+  do {
+    const page = await env.OAUTH_PROVIDER.listUserGrants(userId, { limit: 100, cursor });
+    for (const grant of page.items) {
+      await env.OAUTH_PROVIDER.revokeGrant(grant.id, userId);
+      removed++;
+    }
+    cursor = page.cursor;
+  } while (cursor);
+  return {
+    disconnected: true,
+    connections_removed: removed,
+    message: "Pons deleted the stored Garmin login and this connection. Tell the user to also remove the Pons connector in Claude's settings.",
+  };
+}
+
 
 function currentApi(): GarminApi {
   const props = getMcpAuthContext()?.props as Partial<Props> | undefined;
@@ -83,7 +144,7 @@ export function createServer(): McpServer {
       inputSchema: z.object({}),
       annotations: READ_ONLY,
     },
-    () => runTool(() => currentApi().connectionStatus()),
+    () => call("connection_status", () => currentApi().connectionStatus()),
   );
 
   server.registerTool(
@@ -98,7 +159,7 @@ export function createServer(): McpServer {
       }),
       annotations: READ_ONLY,
     },
-    ({ date }) => runTool(async () => currentApi().dailyOverview(parseDate(date))),
+    ({ date }) => call("daily_overview", async () => currentApi().dailyOverview(parseDate(date))),
   );
 
   server.registerTool(
@@ -111,7 +172,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date }) =>
-      runTool(async () => {
+      call("sleep_history", async () => {
         const [start, end] = dateRange(start_date, end_date, 30, 366);
         return currentApi().sleepHistory(start, end);
       }),
@@ -128,7 +189,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date }) =>
-      runTool(async () => {
+      call("daily_trends", async () => {
         const [start, end] = dateRange(start_date, end_date, 30, 366);
         return currentApi().dailyTrends(start, end);
       }),
@@ -144,7 +205,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => runTool(async () => currentApi().sleepNightDetail(parseDate(date))),
+    ({ date }) => call("sleep_night_detail", async () => currentApi().sleepNightDetail(parseDate(date))),
   );
 
   server.registerTool(
@@ -158,7 +219,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date }) =>
-      runTool(async () => {
+      call("hrv_history", async () => {
         const [start, end] = dateRange(start_date, end_date, 30, 180);
         return currentApi().hrvHistory(start, end);
       }),
@@ -183,7 +244,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date, activity_type }) =>
-      runTool(async () => {
+      call("activities", async () => {
         const [start, end] = dateRange(start_date, end_date, 30, 366);
         return currentApi().activities(start, end, activity_type?.trim().toLowerCase() || undefined);
       }),
@@ -200,7 +261,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ activity_id }) =>
-      runTool(async () => {
+      call("activity_detail", async () => {
         const id = activity_id.trim();
         if (!/^\d{1,20}$/.test(id)) throw new UserInputError("activity_id must be a number from the activities tool.");
         return currentApi().activityDetail(id);
@@ -217,7 +278,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => runTool(async () => currentApi().trainingStatus(parseDate(date))),
+    ({ date }) => call("training_status", async () => currentApi().trainingStatus(parseDate(date))),
   );
 
   server.registerTool(
@@ -231,7 +292,7 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date }) =>
-      runTool(async () => {
+      call("body_composition", async () => {
         const [start, end] = dateRange(start_date, end_date, 90, 366);
         return currentApi().bodyComposition(start, end);
       }),
@@ -247,7 +308,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => runTool(async () => currentApi().dayTimeline(parseDate(date))),
+    ({ date }) => call("day_timeline", async () => currentApi().dayTimeline(parseDate(date))),
   );
 
   server.registerTool(
@@ -260,7 +321,7 @@ export function createServer(): McpServer {
       inputSchema: z.object({}),
       annotations: READ_ONLY,
     },
-    () => runTool(() => currentApi().personalRecords()),
+    () => call("personal_records", () => currentApi().personalRecords()),
   );
 
   server.registerTool(
@@ -277,10 +338,24 @@ export function createServer(): McpServer {
       annotations: READ_ONLY,
     },
     ({ start_date, end_date }) =>
-      runTool(async () => {
+      call("planned_workouts", async () => {
         const [start, end] = upcomingRange(start_date, end_date, 14, 90);
         return currentApi().plannedWorkouts(start, end);
       }),
+  );
+
+  server.registerTool(
+    "disconnect",
+    {
+      title: "Disconnect Pons",
+      description:
+        "Deletes everything Pons holds for this user: all their Pons connections and the stored Garmin login. " +
+        "Only call it when the user clearly asks to disconnect Pons or delete their data, and confirm with them first. " +
+        "It does not change anything in the Garmin account.",
+      inputSchema: z.object({}),
+      annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
+    },
+    () => call("disconnect", disconnect),
   );
 
   return server;
