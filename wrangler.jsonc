@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pons",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-06-01",
+  // nodejs_compat: the agents package needs node:async_hooks.
+  // global_fetch_strictly_public: lets the OAuth library fetch client metadata documents.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      // Placeholder. Replace with the id from `npx wrangler kv namespace create OAUTH_KV` (see README).
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+  "ratelimits": [
+    {
+      "name": "LOGIN_LIMIT",
+      "namespace_id": "1001",
+      // Cloudflare's rate-limit binding only allows a period of 10 or 60 seconds.
+      "simple": { "limit": 5, "period": 60 }
+    }
+  ],
+  "vars": {
+    // Public Turnstile site key. This is Cloudflare's always-pass test key: replace it with your widget's key.
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+  },
+  "observability": { "enabled": true }
+}

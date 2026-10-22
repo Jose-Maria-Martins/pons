@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+# These are Cloudflare's published Turnstile test keys: the widget always passes.
+TURNSTILE_SITE_KEY=1x00000000000000000000AA
+TURNSTILE_SECRET=1x0000000000000000000000000000000AA
+# Any long random string; used to hash emails and Garmin ids. Generate one with: openssl rand -hex 32
+HASH_KEY=local-dev-only-change-me
