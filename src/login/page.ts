@@ -11,6 +11,9 @@ const STYLE = `
 body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);color:var(--text);font:20px/1.5 system-ui,sans-serif}
 main{box-sizing:border-box;width:min(30rem,calc(100% - 2rem));padding:2rem;background:var(--card);border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.12)}
 h1{margin:0 0 .5rem;font-size:1.6rem}
+h2{margin:1.5rem 0 .25rem;font-size:1.1rem}
+ul{margin:.5rem 0;padding-left:1.25rem}li{margin:.25rem 0}
+a{color:var(--accent)}
 p{margin:.5rem 0}.muted{color:var(--muted);font-size:.9rem}.error{color:var(--error);font-weight:600}
 label{display:block;margin-top:1rem;font-weight:600}
 input{box-sizing:border-box;width:100%;margin-top:.25rem;padding:.7rem;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--border);border-radius:10px}
@@ -45,12 +48,12 @@ export interface LoginPageOptions {
   error?: string;
 }
 
-function shell(nonce: string, body: string, script = ""): Response {
+function shell(nonce: string, body: string, script = "", title = "Connect your Garmin"): Response {
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Connect your Garmin</title><style nonce="${nonce}">${STYLE}</style></head>
-<body><main><h1>Connect your Garmin</h1>${body}</main>${script}</body></html>`;
+<title>${title}</title><style nonce="${nonce}">${STYLE}</style></head>
+<body><main><h1>${title}</h1>${body}</main>${script}</body></html>`;
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -88,7 +91,8 @@ export function loginPage(o: LoginPageOptions): Response {
 <button type="submit">Sign in</button>
 <div id="working" hidden><div class="spin" role="status" aria-label="Signing in"></div>
 <p>Signing in to Garmin&hellip; this can take up to a minute.</p></div>
-</form>`;
+</form>
+<p class="muted"><a href="/privacy" target="_blank" rel="noopener">What Pons collects and stores</a></p>`;
   const scripts = `<script nonce="${o.nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script nonce="${o.nonce}">${SUBMIT_SCRIPT}</script>`;
   return shell(o.nonce, body, scripts);
@@ -124,4 +128,36 @@ export function mfaPage(o: MfaPageOptions): Response {
 export function messagePage(nonce: string, text: string, status = 400): Response {
   const res = shell(nonce, `<p class="error" role="alert">${esc(text)}</p>`);
   return new Response(res.body, { status, headers: res.headers });
+}
+
+/** The privacy page at /privacy. Keep it in step with PRIVACY.md and with what src/analytics.ts writes. */
+export function privacyPage(): Response {
+  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+  const body = `<p>Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic.</p>
+<h2>What Pons collects</h2>
+<p>Usage statistics only, and nothing about your health:</p>
+<ul>
+<li>Each time Claude uses a Pons tool: which tool, whether it worked (or the kind of error), how long it took, a user code, and the kind of device the request came from (desktop, web, mobile or other).</li>
+<li>Each time Claude connects: the name and version of the app.</li>
+<li>Each sign-in attempt: the outcome only, such as ok or wrong password.</li>
+</ul>
+<p>The user code is a scrambled code made from your Garmin account id and a secret key. It is not your Garmin id, name or email. Cloudflare keeps these statistics for about three months.</p>
+<p>To limit abuse, Pons also counts sign-in attempts per IP address and per scrambled email for a minute. Cloudflare keeps those counters briefly.</p>
+<h2>What Pons stores</h2>
+<ul>
+<li>A Garmin login token (not your password), encrypted, in the connection that lets Claude keep reading your data. It is kept for up to 30 days.</li>
+<li>If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.</li>
+</ul>
+<h2>What Pons never stores</h2>
+<ul>
+<li>Your Garmin password. It goes straight to Garmin and is held in memory for that one request.</li>
+<li>Your health data. Pons reads it from Garmin when Claude asks and passes it on; it does not keep a copy. What Claude does with it is covered by Anthropic's own policies.</li>
+</ul>
+<h2>Delete everything</h2>
+<p>Ask Claude to disconnect Pons. That deletes the stored connection and the Garmin token. Then remove the Pons connector in Claude's settings.</p>
+<h2>Contact</h2>
+<p>Questions or problems: <a href="https://github.com/Jose-Maria-Martins/pons" rel="noopener">github.com/Jose-Maria-Martins/pons</a>.</p>`;
+  const res = shell(nonce, body, "", "Pons privacy");
+  res.headers.set("Cache-Control", "public, max-age=3600");
+  return res;
 }

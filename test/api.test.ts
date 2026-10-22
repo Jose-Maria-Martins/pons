@@ -7,6 +7,7 @@ import { json, mockFetch, on } from "./helpers.js";
 const props: Props = {
   garmin: { access: "fake-access-token", refresh: "fake-refresh", clientId: "FAKE_CLIENT", expiresAt: 4_000_000_000 },
   displayName: "fake-display-name",
+  userId: "fake-user-id",
 };
 const API = "https://connectapi.garmin.com";
 
