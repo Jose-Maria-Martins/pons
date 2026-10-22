@@ -4,7 +4,7 @@ Talk to your Garmin data from Claude. Pons is a remote [MCP](https://modelcontex
 
 Pons is read-only. No tool writes to your Garmin account.
 
-> Status: milestone 1. Three tools, no 2FA accounts yet, not deployed anywhere by this repository.
+> Status: milestone 2 in progress. Three tools so far; sign-in handles 2FA accounts and Garmin tokens are refreshed. Not deployed anywhere by this repository.
 
 ## What it does
 
@@ -19,7 +19,7 @@ Pons is read-only. No tool writes to your Garmin account.
 ```
 Claude --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
                           |
-                          |- /authorize   sign-in page: Turnstile, rate limits, Garmin login
+                          |- /authorize   sign-in page: Turnstile, rate limits, Garmin login, 2FA code
                           |- /token, /register, /.well-known/*   OAuth (workers-oauth-provider)
                           '- /mcp         stateless MCP server (agents + MCP SDK), three tools
 ```
@@ -27,6 +27,8 @@ Claude --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
 - **Your password goes to Garmin and nowhere else.** The Worker forwards it once, then drops it. It is never stored or logged.
 - **What is stored:** Garmin's login token and a refresh token, inside the OAuth grant in Workers KV. The OAuth library encrypts them at rest with a key only the holder of Claude's access token can unwrap.
 - **Who you are:** an HMAC of your Garmin id, keyed with a secret only the operator holds. Emails are never stored; a keyed hash of the email is used only as a rate-limit key.
+- **2FA:** if your Garmin account asks for a verification code, a second page collects it. Between the two pages the half-finished sign-in waits in KV for 10 minutes, AES-GCM encrypted with a key derived from a random handle that only your browser holds (in a `__Host-` cookie) and the operator's `HASH_KEY`. You get 3 tries; the entry is deleted on success, on the third wrong code and on expiry.
+- **Refresh:** when Claude refreshes its Pons token, Pons also refreshes the Garmin token if it has under 3 hours left, so the connection keeps working. If Garmin refuses the refresh, the grant ends and Claude asks you to reconnect; if Garmin is only busy, the grant is kept and Claude tries again later.
 - The sign-in page checks you are a person ([Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)) and limits attempts per IP and per email before it contacts Garmin.
 
 See [SECURITY.md](SECURITY.md) for the threat model.
@@ -80,9 +82,7 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 ### Known limits
 
 - **Login rate limit:** Cloudflare's rate-limit binding only allows a 10 or 60 second period, so the limit is 5 tries per minute per IP and per email, not per 10 minutes.
-- **Garmin login expiry:** Pons does not refresh Garmin's token yet. When it expires, disconnect and reconnect the connector.
 - **"Today"** is the UTC date.
-- Accounts with two-step verification (2FA) can't connect yet.
 - Garmin has no public API for this. Pons uses the same endpoints as Garmin's mobile app, which can change without notice.
 
 ## Layout
@@ -92,7 +92,9 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 | `src/index.ts` | Worker entry: OAuth provider, routes `/mcp` and `/authorize` |
 | `src/login/authorize.ts` | `/authorize` flow: Turnstile, rate limits, Garmin login, finish the grant |
 | `src/login/page.ts` | The sign-in page HTML and its security headers |
-| `src/login/garmin.ts` | Garmin sign-in: SSO login, token exchange, profile |
+| `src/login/garmin.ts` | Garmin sign-in: SSO login, 2FA code, token exchange, profile, token refresh |
+| `src/login/mfa.ts` | The half-finished 2FA sign-in: encrypted state in KV and its cookie |
+| `src/crypto.ts` | HMAC helper |
 | `src/mcp/server.ts` | MCP server and the three tools |
 | `src/garmin/api.ts` | Garmin data calls with the bearer token |
 | `src/garmin/shape.ts` | Shrinks Garmin responses into compact rows; date handling |
