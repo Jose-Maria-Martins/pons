@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { chunks, dateRange, dayRow, first, parseDate, pick, sleepRows, slim, UserInputError } from "../src/garmin/shape.js";
+import { addDays, chunks, dateRange, dayRow, first, parseDate, pick, sleepRows, slim, upcomingRange, UserInputError } from "../src/garmin/shape.js";
 
 const NOW = new Date("2030-03-15T10:00:00Z");
 
@@ -98,5 +98,21 @@ describe("sleepRows", () => {
       { date: "2030-03-14", totalSleepTimeInSeconds: 27000, sleepScore: 81, deepTime: 5400, hours: 7.5, score: 81 },
       { date: "2030-03-15", sleepTimeSeconds: 0 },
     ]);
+  });
+});
+
+describe("upcomingRange", () => {
+  it("looks ahead from today by default, and from a given day", () => {
+    expect(upcomingRange(undefined, undefined, 14, 90, NOW)).toEqual(["2030-03-15", "2030-03-28"]);
+    expect(upcomingRange("2030-04-01", undefined, 14, 90, NOW)).toEqual(["2030-04-01", "2030-04-14"]);
+  });
+
+  it("swaps a reversed range and refuses one over the maximum", () => {
+    expect(upcomingRange("2030-03-20", "2030-03-18", 14, 90, NOW)).toEqual(["2030-03-18", "2030-03-20"]);
+    expect(() => upcomingRange("2030-01-01", "2030-12-31", 14, 90, NOW)).toThrow(UserInputError);
+  });
+
+  it("adds days across month ends", () => {
+    expect(addDays("2030-02-27", 3)).toBe("2030-03-02");
   });
 });

@@ -4,7 +4,7 @@ Talk to your Garmin data from Claude. Pons is a remote [MCP](https://modelcontex
 
 Pons is read-only. No tool writes to your Garmin account.
 
-> Status: milestone 2 in progress. Three tools so far; sign-in handles 2FA accounts and Garmin tokens are refreshed. Not deployed anywhere by this repository.
+> Status: milestone 2 in progress. Thirteen read-only tools; sign-in handles 2FA accounts and Garmin tokens are refreshed. Not deployed anywhere by this repository.
 
 ## What it does
 
@@ -13,6 +13,16 @@ Pons is read-only. No tool writes to your Garmin account.
 | `connection_status` | Is Garmin connected, and when did the watch last sync? |
 | `daily_overview` | One day: steps, heart rate, stress, Body Battery, last night's sleep and HRV, training readiness. |
 | `sleep_history` | Nightly sleep summaries for a date range (default 30 days, max 366). |
+| `daily_trends` | One row per day: steps, calories, resting HR, stress, Body Battery, intensity minutes, sleep time (default 30 days, max 366). |
+| `sleep_night_detail` | One night in detail: stages, score factors, overnight HRV, SpO2, respiration. |
+| `hrv_history` | Nightly HRV with the 7-day average, baseline range and status (default 30 days, max 180). |
+| `activities` | Workouts in a range with distance, duration, pace or speed, heart rate, training effect and load (default 30 days, max 366, at most 200 workouts), optionally by type. |
+| `activity_detail` | One workout with laps, time in heart rate zones and weather. |
+| `training_status` | Training status and load, readiness, VO2 max, race predictions, endurance score, fitness age. |
+| `body_composition` | Weight and body composition (default 90 days, max 366). This is also the weight history tool: Garmin serves both from the same endpoint. |
+| `day_timeline` | One day in 15-minute steps (local time): heart rate, stress, Body Battery, steps. |
+| `personal_records` | Personal records (fastest 5 km, longest run, and so on). |
+| `planned_workouts` | Workouts on the Garmin calendar, including training plans (default next 14 days, max 90). |
 
 ## How it works
 
@@ -21,7 +31,7 @@ Claude --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
                           |
                           |- /authorize   sign-in page: Turnstile, rate limits, Garmin login, 2FA code
                           |- /token, /register, /.well-known/*   OAuth (workers-oauth-provider)
-                          '- /mcp         stateless MCP server (agents + MCP SDK), three tools
+                          '- /mcp         stateless MCP server (agents + MCP SDK), 13 tools
 ```
 
 - **Your password goes to Garmin and nowhere else.** The Worker forwards it once, then drops it. It is never stored or logged.
@@ -83,6 +93,7 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 
 - **Login rate limit:** Cloudflare's rate-limit binding only allows a 10 or 60 second period, so the limit is 5 tries per minute per IP and per email, not per 10 minutes.
 - **"Today"** is the UTC date.
+- **Some tools are newer and less proven:** `day_timeline`, `personal_records` and `planned_workouts` read Garmin endpoints whose response shapes were written from the garminconnect library's documentation, not checked against a real account yet.
 - Garmin has no public API for this. Pons uses the same endpoints as Garmin's mobile app, which can change without notice.
 
 ## Layout
@@ -95,6 +106,6 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
 | `src/login/garmin.ts` | Garmin sign-in: SSO login, 2FA code, token exchange, profile, token refresh |
 | `src/login/mfa.ts` | The half-finished 2FA sign-in: encrypted state in KV and its cookie |
 | `src/crypto.ts` | HMAC helper |
-| `src/mcp/server.ts` | MCP server and the three tools |
+| `src/mcp/server.ts` | MCP server and its tools |
 | `src/garmin/api.ts` | Garmin data calls with the bearer token |
 | `src/garmin/shape.ts` | Shrinks Garmin responses into compact rows; date handling |
