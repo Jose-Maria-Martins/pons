@@ -1,0 +1,102 @@
+import { describe, expect, it } from "vitest";
+import { chunks, dateRange, dayRow, first, parseDate, pick, sleepRows, slim, UserInputError } from "../src/garmin/shape.js";
+
+const NOW = new Date("2030-03-15T10:00:00Z");
+
+describe("first and pick", () => {
+  it("first skips missing and null values but keeps 0", () => {
+    expect(first({ a: null, b: 0, c: 5 }, "a", "b", "c")).toBe(0);
+    expect(first({ a: 1 }, "x")).toBeUndefined();
+    expect(first("not an object", "a")).toBeUndefined();
+  });
+
+  it("pick maps output names to the first matching field and rounds floats", () => {
+    expect(pick({ alt: 1.23456, other: 7 }, { v: ["main", "alt"], o: ["other"], none: ["zzz"] })).toEqual({ v: 1.23, o: 7 });
+  });
+});
+
+describe("slim", () => {
+  it("drops nulls, empties and id-like keys", () => {
+    const out = slim({ keep: 1, gone: null, empty: [], emptyObj: {}, blank: "", userProfilePK: 9, deviceId: 3, nested: { ownerId: 1, ok: true } });
+    expect(out).toEqual({ keep: 1, nested: { ok: true } });
+  });
+
+  it("replaces long number series with a note", () => {
+    const out = slim({ hr: Array.from({ length: 50 }, (_, i) => i) }) as { hr: string };
+    expect(out.hr).toBe("<time series with 50 points omitted>");
+  });
+
+  it("truncates long lists of objects and rounds floats", () => {
+    const rows = Array.from({ length: 65 }, (_, i) => ({ i, f: 1.23456 }));
+    const out = slim(rows, 60) as unknown[];
+    expect(out).toHaveLength(61);
+    expect(out[0]).toEqual({ i: 0, f: 1.23 });
+    expect(out[60]).toBe("<5 more items omitted>");
+  });
+});
+
+describe("dates", () => {
+  it("parses today, yesterday and ISO dates", () => {
+    expect(parseDate(undefined, NOW)).toBe("2030-03-15");
+    expect(parseDate("Yesterday", NOW)).toBe("2030-03-14");
+    expect(parseDate("2030-02-28", NOW)).toBe("2030-02-28");
+  });
+
+  it("rejects things that are not real dates", () => {
+    for (const bad of ["2030-02-30", "15/03/2030", "last week", "2030-3-5"]) {
+      expect(() => parseDate(bad, NOW)).toThrow(UserInputError);
+    }
+  });
+
+  it("builds a default range and swaps a reversed one", () => {
+    expect(dateRange(undefined, undefined, 30, 366, NOW)).toEqual(["2030-02-14", "2030-03-15"]);
+    expect(dateRange("2030-03-10", "2030-03-01", 30, 366, NOW)).toEqual(["2030-03-01", "2030-03-10"]);
+  });
+
+  it("refuses a range over the maximum", () => {
+    expect(() => dateRange("2029-01-01", "2030-03-15", 30, 366, NOW)).toThrow(/at most 366 days/);
+  });
+
+  it("splits a range into chunks", () => {
+    expect(chunks("2030-01-01", "2030-02-10", 28)).toEqual([
+      ["2030-01-01", "2030-01-28"],
+      ["2030-01-29", "2030-02-10"],
+    ]);
+    expect(chunks("2030-01-01", "2030-01-01", 28)).toEqual([["2030-01-01", "2030-01-01"]]);
+  });
+});
+
+describe("dayRow", () => {
+  it("shapes a day summary: km, rounding, and stress no-data markers removed", () => {
+    const row = dayRow({
+      calendarDate: "2030-03-14",
+      totalSteps: 8123,
+      totalDistanceMeters: 6543.2,
+      restingHeartRate: 55,
+      averageStressLevel: -1,
+      maxStressLevel: 80,
+      averageSpo2: 96.456,
+      somethingElse: "ignored",
+    });
+    expect(row).toEqual({ date: "2030-03-14", steps: 8123, distance_km: 6.54, resting_hr: 55, stress_max: 80, spo2_avg: 96.46 });
+  });
+
+  it("returns an empty row for anything that is not an object", () => {
+    expect(dayRow(null)).toEqual({});
+    expect(dayRow([1, 2])).toEqual({});
+  });
+});
+
+describe("sleepRows", () => {
+  it("adds hours and score and slims the values", () => {
+    const rows = sleepRows([
+      { calendarDate: "2030-03-14", values: { totalSleepTimeInSeconds: 27000, sleepScore: 81, deepTime: 5400, junk: null } },
+      { calendarDate: "2030-03-15", values: { sleepTimeSeconds: 0 } },
+      "not a row",
+    ]);
+    expect(rows).toEqual([
+      { date: "2030-03-14", totalSleepTimeInSeconds: 27000, sleepScore: 81, deepTime: 5400, hours: 7.5, score: 81 },
+      { date: "2030-03-15", sleepTimeSeconds: 0 },
+    ]);
+  });
+});
