@@ -68,10 +68,85 @@ export async function openLoginPage() {
   return { path, page, html, handle: handle ?? "", cookie, clientId };
 }
 
-export const post = (path: string, cookie: string, fields: Record<string, string>) =>
+export const post = (path: string, cookie: string, fields: Record<string, string>, headers: Record<string, string> = {}) =>
   send(path, {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookie },
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookie, ...headers },
     body: new URLSearchParams(fields),
   });
 
+
+export interface Connected {
+  accessToken: string;
+  refreshToken: string;
+  clientId: string;
+}
+
+// Each connection uses its own address and email, so the login rate limits never get in the way.
+let connections = 0;
+
+/** Full OAuth flow with a fake Garmin. `garminExpiresIn` is how many seconds the fake Garmin token lasts. */
+export async function connect(garminExpiresIn = 3600): Promise<Connected> {
+  const n = ++connections;
+  const { path, handle, cookie, clientId } = await openLoginPage();
+  mockFetch(
+    on("https://challenges.cloudflare.com/", () => json({ success: true })),
+    on("https://sso.garmin.com/", () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
+    on("https://diauth.garmin.com/", () => json({ access_token: "fake-garmin-access", refresh_token: "fake-refresh", expires_in: garminExpiresIn })),
+    on("https://connectapi.garmin.com/userprofile-service/socialProfile", () => json({ displayName: "fake-display-name", garminGUID: "fake-guid", fullName: "Test Person" })),
+  );
+  const done = await post(path, cookie, { handle, email: `connect${n}@example.com`, password: "fake-password", "cf-turnstile-response": "ok" }, { "CF-Connecting-IP": `192.0.2.${n % 250}` });
+  const code = new URL(done.headers.get("Location") ?? "").searchParams.get("code") ?? "";
+  vi.restoreAllMocks();
+  return exchange({ grant_type: "authorization_code", code, redirect_uri: REDIRECT, client_id: clientId, code_verifier: PKCE_VERIFIER }, clientId);
+}
+
+async function exchange(params: Record<string, string>, clientId: string): Promise<Connected> {
+  const res = await tokenRequest(params);
+  expect(res.status).toBe(200);
+  const body = (await res.json()) as { access_token: string; refresh_token: string };
+  return { accessToken: body.access_token, refreshToken: body.refresh_token, clientId };
+}
+
+const tokenRequest = (params: Record<string, string>) =>
+  send("/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(params),
+  });
+
+/** Pons's own refresh_token grant. Returns the raw response, so a test can look at failures. */
+export const refreshRequest = (c: Pick<Connected, "refreshToken" | "clientId">) =>
+  tokenRequest({ grant_type: "refresh_token", refresh_token: c.refreshToken, client_id: c.clientId });
+
+/** A refresh that must succeed: the next set of tokens. */
+export async function refreshed(c: Connected): Promise<Connected> {
+  return exchange({ grant_type: "refresh_token", refresh_token: c.refreshToken, client_id: c.clientId }, c.clientId);
+}
+
+export const rpc = (accessToken: string | null, method: string, params: object = {}) =>
+  send("/mcp", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+    },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
+  });
+
+/** A JSON-RPC reply as the tests read it. */
+export interface RpcMessage {
+  result: {
+    tools: { name: string; title?: string; annotations: { readOnlyHint: boolean; destructiveHint?: boolean } }[];
+    isError?: boolean;
+    content: { type: string; text: string }[];
+  };
+}
+
+/** The JSON-RPC message in a response that is either plain JSON or an SSE stream. */
+export async function message(res: Response): Promise<RpcMessage> {
+  const text = await res.text();
+  const data = text.startsWith("{") ? text : (text.split("\n").find((l) => l.startsWith("data: ")) ?? "data: {}").slice(6);
+  return JSON.parse(data);
+}
