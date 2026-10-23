@@ -20,7 +20,7 @@ Risk: someone reads or keeps the Garmin password.
 Risk: someone obtains the Garmin token or a Pons access token.
 
 - Garmin's token is stored in the OAuth grant in Workers KV, encrypted by `@cloudflare/workers-oauth-provider` with a key that only the holder of the access token can unwrap.
-- Claude's access tokens last one hour; refresh tokens last 30 days.
+- Claude's access tokens last one hour; refresh tokens last 90 days.
 - The Garmin token can read health data. It is limited to what Garmin allows that mobile client.
 - The `disconnect` tool revokes every grant of the user, which deletes the stored token. Claude can call it whenever the user asks.
 - Left over: a stolen access token works until it expires (one hour) or the grant is revoked.

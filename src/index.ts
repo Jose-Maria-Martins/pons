@@ -5,6 +5,7 @@ import { initializeInfo, platformOf, requestContext, track } from "./analytics.j
 import type { GarminAuth, Props } from "./garmin/api.js";
 import { handleAuthorize } from "./login/authorize.js";
 import { fetchTimeZone, refreshGarminAuth } from "./login/garmin.js";
+import { pickLang } from "./login/i18n.js";
 import { privacyPage } from "./login/page.js";
 import { createServer } from "./mcp/server.js";
 
@@ -86,7 +87,12 @@ const defaultHandler: ExportedHandler<Env> = {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
-    if (pathname === "/privacy" && request.method === "GET") return privacyPage(env.SOURCE_URL);
+    if (pathname === "/privacy" && request.method === "GET") {
+      const { lang, setCookie } = pickLang(request);
+      const res = privacyPage(env.SOURCE_URL, lang);
+      if (setCookie) res.headers.append("Set-Cookie", setCookie);
+      return res;
+    }
     if ((pathname === "/icon.png" || pathname === "/favicon.ico") && request.method === "GET") {
       return new Response(icon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
     }
@@ -109,7 +115,7 @@ function providerFor(origin: string): OAuthProvider<Env> {
       clientRegistrationEndpoint: "/register",
       accessTokenTTL: 3600,
       tokenExchangeCallback,
-      refreshTokenTTL: 30 * 24 * 3600,
+      refreshTokenTTL: 90 * 24 * 3600,
       clientIdMetadataDocumentEnabled: true,
       resourceMetadata: { resource: `${origin}/mcp`, authorization_servers: [origin] },
     });
