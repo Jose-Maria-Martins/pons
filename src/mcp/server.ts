@@ -156,8 +156,18 @@ const dateShape = {
   date: z.string().optional().describe("YYYY-MM-DD, 'today' or 'yesterday'. Defaults to today."),
 };
 
-export function createServer(): McpServer {
-  const server = new McpServer({ name: "pons", version: "0.1.0" }, { instructions: INSTRUCTIONS });
+/** `origin` is the Worker's own origin, so the icon and website URLs are absolute. Without it the server has neither. */
+export function createServer(origin?: string): McpServer {
+  const server = new McpServer(
+    {
+      name: "pons",
+      title: "Pons",
+      version: "0.1.0",
+      description: "Read-only access to your Garmin Connect data: sleep, HRV, stress, Body Battery, activities and training.",
+      ...(origin ? { websiteUrl: origin, icons: [{ src: `${origin}/icon.png`, mimeType: "image/png", sizes: ["512x512"] }] } : {}),
+    },
+    { instructions: INSTRUCTIONS },
+  );
 
   server.registerTool(
     "connection_status",
@@ -253,23 +263,37 @@ export function createServer(): McpServer {
     {
       title: "Activities",
       description:
-        "Workouts in a date range with distance, duration, pace or speed, heart rate, training effect and load. " +
+        "Workouts, newest first, with distance, duration, pace or speed, heart rate, training effect and load. " +
         "Defaults to the last 30 days; max 366. At most 200 activities are returned; ask for a shorter range if a " +
-        "note says there are more. activity_type filters: running, cycling, swimming, hiking, walking, " +
-        "fitness_equipment, multi_sport, other.",
+        "note says there are more. For 'my last N workouts' or 'my last 5 runs', use limit (with activity_type " +
+        "if needed) and no dates instead of guessing a date range. activity_type filters: running, cycling, " +
+        "swimming, hiking, walking, fitness_equipment, multi_sport, other.",
       inputSchema: z.object({
         ...rangeShape,
         activity_type: z
           .string()
           .optional()
           .describe("Only this kind: running, cycling, swimming, hiking, walking, fitness_equipment, multi_sport or other."),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(100)
+          .optional()
+          .describe("Only the N most recent activities, e.g. 5 for 'my last 5 runs'. Without start_date, no date range applies."),
       }),
       annotations: READ_ONLY,
     },
-    ({ start_date, end_date, activity_type }) =>
+    ({ start_date, end_date, activity_type, limit }) =>
       call("activities", async () => {
+        const type = activity_type?.trim().toLowerCase() || undefined;
+        if (limit !== undefined && !start_date) {
+          // "The last N": no default 30 days, Garmin returns the most recent ones.
+          const end = end_date ? parseDate(end_date, undefined, userTimeZone()) : undefined;
+          return currentApi().activities(undefined, end, type, limit);
+        }
         const [start, end] = dateRange(start_date, end_date, 30, 366, undefined, userTimeZone());
-        return currentApi().activities(start, end, activity_type?.trim().toLowerCase() || undefined);
+        return currentApi().activities(start, end, type, limit);
       }),
   );
 

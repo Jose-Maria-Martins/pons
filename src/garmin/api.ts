@@ -220,20 +220,25 @@ export class GarminApi {
     return slim(await this.get(`/wellness-service/wellness/dailySleepData/${name}`, { date, nonSleepBufferMinutes: 60 }));
   }
 
-  /** Workouts in a range. Garmin pages by 20; at most MAX_ACTIVITY_PAGES pages (calls) are read. */
-  async activities(start: string, end: string, activityType?: string): Promise<Json[]> {
+  /**
+   * Workouts in a range, newest first. Garmin pages by 20; at most MAX_ACTIVITY_PAGES pages (calls) are read.
+   * With `limit` it stops once that many are collected and asks for no more than needed. Without `start`
+   * (and `end`) no date is sent, so Garmin answers with the most recent ones.
+   */
+  async activities(start: string | undefined, end: string | undefined, activityType?: string, limit?: number): Promise<Json[]> {
     const rows: Json[] = [];
     for (let page = 0; page < MAX_ACTIVITY_PAGES; page++) {
+      const size = Math.min(ACTIVITY_PAGE_SIZE, (limit ?? Infinity) - rows.length);
       const batch = await this.get("/activitylist-service/activities/search/activities", {
-        startDate: start,
-        endDate: end,
+        ...(start ? { startDate: start } : {}),
+        ...(end ? { endDate: end } : {}),
         start: page * ACTIVITY_PAGE_SIZE,
-        limit: ACTIVITY_PAGE_SIZE,
+        limit: size,
         ...(activityType ? { activityType } : {}),
       });
       if (!Array.isArray(batch) || batch.length === 0) return rows;
       rows.push(...batch.map(activityRow));
-      if (batch.length < ACTIVITY_PAGE_SIZE) return rows;
+      if (batch.length < size || rows.length >= (limit ?? Infinity)) return rows;
     }
     rows.push({ note: `Showing the first ${rows.length} activities; there may be more. Ask for a shorter date range.` });
     return rows;
