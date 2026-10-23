@@ -168,6 +168,33 @@ describe("training_status", () => {
 });
 
 describe("body_composition", () => {
+  it("keeps the latest weigh-ins when the list is long and comes oldest first", async () => {
+    const day = (i: number) => new Date(Date.UTC(2030, 0, 1) + i * 86_400_000).toISOString().slice(0, 10);
+    const entries = Array.from({ length: 70 }, (_, i) => ({
+      summaryDate: day(i),
+      allWeightMetrics: Array.from({ length: 65 }, (_, j) => ({ calendarDate: day(i), samplePk: j, weight: 70000 + j })),
+    }));
+    mockFetch(on(`${API}/weight-service/weight/dateRange`, () => json({ dailyWeightSummaries: entries, totalAverage: { weight: 70000 } })));
+
+    const out = (await api().bodyComposition("2030-01-01", "2030-03-11")) as {
+      dailyWeightSummaries: { summaryDate?: string; allWeightMetrics?: { samplePk: number }[] }[];
+    };
+
+    const kept = out.dailyWeightSummaries.filter((s) => s.summaryDate);
+    expect(kept).toHaveLength(60);
+    expect(kept[0]?.summaryDate).toBe(day(69));
+    expect(kept.map((s) => s.summaryDate)).not.toContain(day(0));
+    expect(kept.at(-1)?.summaryDate).toBe(day(10));
+    // Inside a day, the newest of a long list of measurements are kept too.
+    expect(out.dailyWeightSummaries.at(-1)).toMatch(/10 more items omitted/);
+  });
+
+  it("leaves a list in its order when the entries carry no date", async () => {
+    mockFetch(on(`${API}/weight-service/weight/dateRange`, () => json({ dailyWeightSummaries: [{ weight: 2 }, { weight: 1 }] })));
+    expect(await api().bodyComposition("2030-01-01", "2030-01-02")).toEqual({ dailyWeightSummaries: [{ weight: 2 }, { weight: 1 }] });
+  });
+
+
   it("is one call to the weight service, slimmed (weight history lives here)", async () => {
     const { spy } = mockFetch(
       on(`${API}/weight-service/weight/dateRange`, () =>
@@ -215,6 +242,60 @@ describe("day_timeline", () => {
       ],
     });
     expect(calls).toHaveLength(3);
+  });
+
+  describe("on a day the clocks change (Europe/London)", () => {
+    const london = new GarminApi({ ...props, timeZone: "Europe/London" });
+    const at = (iso: string) => Date.parse(iso);
+    const serve = (date: string, points: [string, number][]) =>
+      mockFetch(
+        on(`${API}/wellness-service/wellness/dailyHeartRate/fake-display-name`, () =>
+          json({
+            startTimestampGMT: `${date}T00:00:00.0`,
+            startTimestampLocal: `${date}T00:00:00.0`,
+            heartRateValues: points.map(([time, bpm]) => [at(`${date}T${time}:00Z`), bpm]),
+          }),
+        ),
+        on(`${API}/wellness-service/wellness/dailyStress/`, () => json({})),
+        on(`${API}/wellness-service/wellness/dailySummaryChart/`, () => json([])),
+      );
+
+    it("jumps from 00:45 to 02:00 when the clocks go forward (2030-03-31, 01:00 GMT becomes 02:00 BST)", async () => {
+      serve("2030-03-31", [["00:30", 60], ["00:50", 62], ["01:10", 70], ["01:40", 72], ["06:00", 80]]);
+      const out = (await london.dayTimeline("2030-03-31")) as { tz_offset_min: number; buckets: { time: string; hr_avg: number }[] };
+      expect(out.tz_offset_min).toBe(0);
+      expect(out.buckets).toEqual([
+        { time: "00:30", hr_avg: 60, hr_max: 60 },
+        { time: "00:45", hr_avg: 62, hr_max: 62 },
+        { time: "02:00", hr_avg: 70, hr_max: 70 },
+        { time: "02:30", hr_avg: 72, hr_max: 72 },
+        { time: "07:00", hr_avg: 80, hr_max: 80 },
+      ]);
+    });
+
+    it("repeats the 01:00 hour, in time order, when the clocks go back (2030-10-27, 02:00 BST becomes 01:00 GMT)", async () => {
+      serve("2030-10-27", [["00:10", 55], ["00:50", 58], ["01:10", 61], ["01:40", 63], ["05:00", 70]]);
+      const out = (await london.dayTimeline("2030-10-27")) as { buckets: { time: string; hr_avg: number }[] };
+      expect(out.buckets.map((b) => [b.time, b.hr_avg])).toEqual([
+        ["01:00", 55],
+        ["01:45", 58],
+        ["01:00", 61],
+        ["01:30", 63],
+        ["05:00", 70],
+      ]);
+    });
+
+    it("matches the single-offset result on an ordinary day", async () => {
+      serve("2030-03-14", [["07:00", 60], ["07:20", 90]]);
+      const out = (await london.dayTimeline("2030-03-14")) as { buckets: { time: string }[] };
+      expect(out.buckets.map((b) => b.time)).toEqual(["07:00", "07:15"]);
+    });
+
+    it("falls back to the day's offset for a time zone name the runtime does not know", async () => {
+      serve("2030-03-31", [["01:10", 70]]);
+      const out = (await new GarminApi({ ...props, timeZone: "Not/AZone" }).dayTimeline("2030-03-31")) as { buckets: { time: string }[] };
+      expect(out.buckets.map((b) => b.time)).toEqual(["01:00"]);
+    });
   });
 
   it("names the parts Garmin could not give instead of failing", async () => {
