@@ -7,6 +7,7 @@ import {
   dayRow,
   first,
   hrvRows,
+  newestFirst,
   pick,
   localDate,
   recordRows,
@@ -281,7 +282,7 @@ export class GarminApi {
 
   /** Weight and body composition for a range, from Garmin's weight service (one call). */
   async bodyComposition(start: string, end: string): Promise<unknown> {
-    return slim(await this.get("/weight-service/weight/dateRange", { startDate: start, endDate: end }));
+    return slim(newestFirst(await this.get("/weight-service/weight/dateRange", { startDate: start, endDate: end })));
   }
 
   /** One day of heart rate, stress, Body Battery and steps in 15-minute buckets. */
@@ -298,7 +299,7 @@ export class GarminApi {
       .map(([k]) => k);
     return {
       date,
-      ...timelineBuckets(usable(heart), usable(stress), usable(steps)),
+      ...timelineBuckets(usable(heart), usable(stress), usable(steps), this.props.timeZone),
       ...(missing.length ? { unavailable: missing } : {}),
     };
   }

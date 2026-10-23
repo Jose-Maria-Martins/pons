@@ -59,6 +59,28 @@ export function pick(d: unknown, mapping: Record<string, readonly string[]>): Js
   return out;
 }
 
+// Garmin's weight lists, which can come oldest first.
+const WEIGHT_LISTS = ["dailyWeightSummaries", "dateWeightList", "allWeightMetrics"];
+
+const whenOf = (x: unknown): number => {
+  const v = first(x, "summaryDate", "calendarDate", "date", "timestampGMT");
+  return (typeof v === "number" ? v : typeof v === "string" ? Date.parse(v) : NaN) || 0;
+};
+
+/**
+ * Weigh-ins sorted newest first, so that `slim` cutting a long list drops the oldest entries, not the latest.
+ * Entries without a date keep their order.
+ */
+export function newestFirst(data: unknown): unknown {
+  if (!isRecord(data)) return data;
+  const out: Json = { ...data };
+  for (const key of WEIGHT_LISTS) {
+    const list = out[key];
+    if (Array.isArray(list)) out[key] = list.map(newestFirst).sort((a, b) => whenOf(b) - whenOf(a));
+  }
+  return out;
+}
+
 // -- Dates -----------------------------------------------------------------
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -242,14 +264,40 @@ interface Bucket {
 /** Garmin writes some timestamps as "2030-03-14T06:00:00.0" with no zone: that is GMT. */
 const gmtMs = (s: unknown): number => (typeof s === "string" ? Date.parse(/(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : `${s}Z`) : NaN);
 
+/** A function giving the zone's UTC offset in milliseconds at an instant. The formatter is built once. */
+function offsetInZone(timeZone: string): (ms: number) => number {
+  const format = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
+    second: "numeric",
+  });
+  return (ms) => {
+    const p: Record<string, number> = {};
+    for (const { type, value } of format.formatToParts(ms)) p[type] = Number(value);
+    return Date.UTC(p.year!, p.month! - 1, p.day!, p.hour!, p.minute!, p.second!) - Math.floor(ms / 1000) * 1000;
+  };
+}
+
 const pairs = (v: unknown): unknown[][] => (Array.isArray(v) ? v.filter((p): p is unknown[] => Array.isArray(p)) : []);
 
 /**
  * One day of heart rate, stress, Body Battery and steps in 15-minute buckets (local time).
  * `heart`, `stress` and `steps` are the raw responses of Garmin's daily heart rate, stress and
  * summary chart endpoints. Buckets without any data are left out.
+ * With a known `timeZone` each bucket's local time follows that zone's rules, so a day that changes between
+ * summer and winter time stays right. Without one, the offset Garmin reports at the start of the day is used all day.
  */
-export function timelineBuckets(heart: unknown, stress: unknown, steps: unknown): { tz_offset_min: number; buckets: Json[] } {
+export function timelineBuckets(
+  heart: unknown,
+  stress: unknown,
+  steps: unknown,
+  timeZone?: string,
+): { tz_offset_min: number; buckets: Json[] } {
   // Garmin gives the same instant in GMT and local time; the difference is the UTC offset.
   let offsetMin = 0;
   for (const src of [heart, stress]) {
@@ -263,9 +311,16 @@ export function timelineBuckets(heart: unknown, stress: unknown, steps: unknown)
     }
   }
 
+  // A bucket's key is its slot number. With a zone it counts UTC slots, so the repeated hour of a clock change
+  // stays two buckets in time order; the local time is worked out once per bucket, not per point.
+  const zone = timeZone && resolveTimeZone(timeZone) === timeZone ? timeZone : undefined;
+  const zoneOffsetMs = zone ? offsetInZone(zone) : undefined;
+  const slotOf = (ts: number) => Math.floor((zoneOffsetMs ? ts : ts + offsetMin * 60_000) / BUCKET_MS);
+  const localMs = (key: number) => key * BUCKET_MS + (zoneOffsetMs ? zoneOffsetMs(key * BUCKET_MS) : 0);
+
   const buckets = new Map<number, Bucket>();
   const at = (ts: number): Bucket => {
-    const key = Math.floor((ts + offsetMin * 60_000) / BUCKET_MS);
+    const key = slotOf(ts);
     let b = buckets.get(key);
     if (!b) buckets.set(key, (b = { hr: [], stress: [] }));
     return b;
@@ -295,7 +350,7 @@ export function timelineBuckets(heart: unknown, stress: unknown, steps: unknown)
   const rows = [...buckets.entries()]
     .sort(([a], [b]) => a - b)
     .map(([key, b]) => {
-      const row: Json = { time: new Date(key * BUCKET_MS).toISOString().slice(11, 16) };
+      const row: Json = { time: new Date(localMs(key)).toISOString().slice(11, 16) };
       if (b.hr.length) {
         row.hr_avg = mean(b.hr);
         row.hr_max = Math.max(...b.hr);
