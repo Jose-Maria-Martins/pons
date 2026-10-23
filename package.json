@@ -2,6 +2,11 @@
   "name": "pons",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jose-Maria-Martins/pons.git"
+  },
   "description": "Remote MCP server that lets Claude read your Garmin Connect data",
   "type": "module",
   "scripts": {
