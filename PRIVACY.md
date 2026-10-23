@@ -1,6 +1,6 @@
 # Pons privacy
 
-Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic. The same text is served at `/privacy`.
+Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic. It is open source: the code is in this repository. The same text is served at `/privacy`.
 
 ## What Pons collects
 
@@ -31,4 +31,6 @@ Ask Claude to disconnect Pons. That deletes the stored connection and the Garmin
 
 ## Contact
 
-Questions or problems: [github.com/Jose-Maria-Martins/pons](https://github.com/Jose-Maria-Martins/pons).
+Questions or problems: open an issue in this repository.
+
+The `/privacy` page shows the same contact line only when the person running Pons has set `SOURCE_URL`. Without it, the page says to contact the person who shared Pons with you.

@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { loadMfaState, newMfaExpiry, newMfaHandle, saveMfaState, type MfaState } from "../src/login/mfa.js";
+import { loadMfaState, mfaFingerprint, newMfaExpiry, newMfaHandle, saveMfaState, type MfaState } from "../src/login/mfa.js";
 import { json, mockFetch, on, openLoginPage, post, REDIRECT } from "./helpers.js";
 
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -51,8 +51,16 @@ async function reachCodePage(who = visitor()) {
   };
 }
 
-const submitCode = (mfaCookie: string, code: string, ip: string, token = "ok") =>
-  post("/authorize", mfaCookie, { step: "mfa", code, "cf-turnstile-response": token }, { "CF-Connecting-IP": ip });
+/** Submit the code form. `tab` is the form's hidden tag; by default the one of the sign-in the cookie belongs to. */
+const submitCode = async (mfaCookie: string, code: string, ip: string, token = "ok", tab?: string) =>
+  post(
+    "/authorize",
+    mfaCookie,
+    { step: "mfa", code, tab: tab ?? (await mfaFingerprint(mfaCookie.split("=")[1] ?? "")), "cf-turnstile-response": token },
+    { "CF-Connecting-IP": ip },
+  );
+
+const tabOf = (html: string) => /name="tab" value="([0-9a-f]+)"/.exec(html)?.[1] ?? "";
 
 const goodGarmin = () => [
   on(SITEVERIFY, () => json({ success: true })),
@@ -68,11 +76,13 @@ const wrongCode = () => [
 
 describe("the 2FA code page", () => {
   it("replaces the password form when Garmin asks for a code, and binds the step to the browser", async () => {
-    const { res, html, setCookie } = await reachCodePage();
+    const { res, html, setCookie, mfaHandle } = await reachCodePage();
 
     expect(res.status).toBe(200);
     expect(html).toContain("verification code");
     expect(html).toContain('name="code"');
+    expect(html).toContain(`name="tab" value="${await mfaFingerprint(mfaHandle)}"`);
+    expect(html).not.toContain(mfaHandle);
     expect(html).toContain('data-sitekey="1x00000000000000000000AA"');
     expect(html).not.toContain('name="password"');
     expect(setCookie).toMatch(/^__Host-pons_mfa=[A-Za-z0-9_-]{40,};/);
@@ -146,7 +156,9 @@ describe("submitting the 2FA code", () => {
 
     const first = await submitCode(mfaCookie, "000001", who.ip);
     expect(first.status).toBe(200);
-    expect(await first.text()).toContain("You have 2 tries left");
+    const firstHtml = await first.text();
+    expect(firstHtml).toContain("You have 2 tries left");
+    expect(firstHtml).toContain(`name="tab" value="${await mfaFingerprint(mfaCookie.split("=")[1] ?? "")}"`);
     expect(await submitCode(mfaCookie, "000002", who.ip).then((r) => r.text())).toContain("You have 1 try left");
 
     const third = await submitCode(mfaCookie, "000003", who.ip);
@@ -160,6 +172,59 @@ describe("submitting the 2FA code", () => {
     const late = await submitCode(mfaCookie, "123456", who.ip);
     expect(late.status).toBe(400);
     expect(calls.filter((c) => c.includes("garmin.com"))).toEqual([]);
+  });
+
+  it("saves the try before asking Garmin, so a parallel submission already sees it", async () => {
+    const { mfaCookie, mfaHandle, who } = await reachCodePage();
+    let seenByGarmin: number | undefined;
+    vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      const url = String(input instanceof Request ? input.url : input);
+      if (url.startsWith(SITEVERIFY)) return json({ success: true });
+      if (url.startsWith(VERIFY)) {
+        seenByGarmin = (await loadMfaState(env, mfaHandle))?.attempts;
+        return json({ responseStatus: { type: "INVALID_VERIFICATION_CODE" } });
+      }
+      throw new Error("Unexpected fetch to " + url);
+    });
+
+    const res = await submitCode(mfaCookie, "000001", who.ip);
+
+    expect(seenByGarmin).toBe(1);
+    expect(await res.text()).toContain("You have 2 tries left");
+  });
+
+  it("ends the sign-in without contacting Garmin when the tries were already used up", async () => {
+    const { mfaCookie, mfaHandle, who, key } = await reachCodePage();
+    await saveMfaState(env, mfaHandle, { ...(await loadMfaState(env, mfaHandle))!, attempts: 3 });
+    const { calls } = mockFetch(...goodGarmin());
+
+    const res = await submitCode(mfaCookie, "123456", who.ip);
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("three times");
+    expect(await env.OAUTH_KV.get(key)).toBeNull();
+    expect(calls.filter((c) => c.includes("garmin.com"))).toEqual([]);
+  });
+
+  it("tells an older tab its sign-in was replaced, and leaves the newer sign-in alone", async () => {
+    const older = await reachCodePage();
+    const newer = await reachCodePage();
+    expect(tabOf(older.html)).not.toBe(tabOf(newer.html));
+    const { calls } = mockFetch(...goodGarmin());
+
+    // The browser holds the newer cookie, but this form came from the older sign-in.
+    const res = await submitCode(newer.mfaCookie, "123456", newer.who.ip, "ok", tabOf(older.html));
+
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("replaced by a newer one");
+    expect(res.headers.getSetCookie()).toEqual([]);
+    expect(calls.filter((c) => c.includes("garmin.com"))).toEqual([]);
+    expect((await loadMfaState(env, newer.mfaHandle))?.attempts).toBe(0);
+
+    // The newer form still works.
+    vi.restoreAllMocks();
+    mockFetch(...goodGarmin());
+    expect((await submitCode(newer.mfaCookie, "123456", newer.who.ip, "ok", tabOf(newer.html))).status).toBe(302);
   });
 
   it("accepts the right code after a wrong one", async () => {
@@ -215,11 +280,12 @@ describe("submitting the 2FA code", () => {
   });
 
   it("does not use up a try when Garmin cannot be reached", async () => {
-    const { mfaCookie, who, key } = await reachCodePage();
+    const { mfaCookie, mfaHandle, who, key } = await reachCodePage();
     mockFetch(on(SITEVERIFY, () => json({ success: true })), on(VERIFY, () => new Response("<html>down</html>", { status: 502 })));
     const res = await submitCode(mfaCookie, "123456", who.ip);
     expect(await res.text()).toContain("Couldn&#39;t reach Garmin");
     expect(await env.OAUTH_KV.get(key)).not.toBeNull();
+    expect((await loadMfaState(env, mfaHandle))?.attempts).toBe(0);
   });
 
   it("limits code tries from one address before contacting Garmin", async () => {

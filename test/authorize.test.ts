@@ -46,6 +46,56 @@ describe("POST /authorize", () => {
     expect(calls.filter((c) => c.includes("garmin.com"))).toEqual([]);
   });
 
+  describe("body size", () => {
+    const stream = (text: string, pieces: number) => {
+      const size = Math.ceil(text.length / pieces);
+      let at = 0;
+      return new ReadableStream<Uint8Array>({
+        pull(controller) {
+          if (at >= text.length) return controller.close();
+          controller.enqueue(new TextEncoder().encode(text.slice(at, (at += size))));
+        },
+      });
+    };
+    // A stream body has no Content-Length, like a chunked request.
+    const postStream = (path: string, cookie: string, text: string) =>
+      send(path, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Cookie: cookie },
+        body: stream(text, 20),
+        duplex: "half",
+      } as RequestInit);
+
+    it("refuses a body that announces more than the limit", async () => {
+      const { path, cookie } = await openLoginPage();
+      const { calls } = mockFetch(on(SITEVERIFY, () => json({ success: true })));
+      const res = await post(path, cookie, { email: "someone@example.com", password: "x".repeat(20_000) });
+      expect(res.status).toBe(413);
+      expect(calls).toEqual([]);
+    });
+
+    it("refuses a chunked body over the limit, which has no Content-Length", async () => {
+      const { path, handle, cookie } = await openLoginPage();
+      const { calls } = mockFetch(on(SITEVERIFY, () => json({ success: true })));
+      const body = new URLSearchParams({ handle, email: "someone@example.com", password: "x".repeat(20_000) }).toString();
+      const res = await postStream(path, cookie, body);
+      expect(res.status).toBe(413);
+      expect(calls).toEqual([]);
+    });
+
+    it("still reads a small chunked body", async () => {
+      const { path, handle, cookie } = await openLoginPage();
+      mockFetch(
+        on(SITEVERIFY, () => json({ success: true })),
+        on("https://sso.garmin.com/mobile/api/login", () => json({ responseStatus: { type: "INVALID_USERNAME_PASSWORD" } })),
+      );
+      const body = new URLSearchParams({ handle, email: "someone@example.com", password: "fake-password", "cf-turnstile-response": "ok" }).toString();
+      const res = await postStream(path, cookie, body);
+      expect(res.status).toBe(200);
+      expect(await res.text()).toContain("didn&#39;t accept that email or password");
+    });
+  });
+
   it("signs in and sends the user back to the client with an authorization code", async () => {
     const { path, handle, cookie } = await openLoginPage();
     mockFetch(
