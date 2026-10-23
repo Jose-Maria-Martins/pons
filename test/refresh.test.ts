@@ -160,6 +160,22 @@ describe("refreshGarminAuth", () => {
     expect(await refreshGarminAuth(auth)).toMatchObject({ ok: true, auth: { clientId: "FAKE_CLIENT" } });
   });
 
+  it("logs the answer's field names and lifetimes, never its tokens", async () => {
+    mockFetch(
+      on(DI, () => json({ access_token: "new-secret-access", refresh_token: "new-secret-refresh", expires_in: 96_000, refresh_token_expires_in: 7_776_000, scope: "x" })),
+    );
+    const log = vi.spyOn(console, "log").mockImplementation(() => {});
+    await refreshGarminAuth(auth);
+    const lines = log.mock.calls.map((c) => String(c[0]));
+    expect(lines.join("\n")).not.toMatch(/secret|old-refresh|old-access/);
+    expect(lines.map((l) => JSON.parse(l))).toContainEqual({
+      pons_garmin_token: "refresh",
+      fields: ["access_token", "expires_in", "refresh_token", "refresh_token_expires_in", "scope"],
+      numbers: { expires_in: 96_000, refresh_token_expires_in: 7_776_000 },
+      rotated: true,
+    });
+  });
+
   it("cannot refresh without a refresh token", async () => {
     const { calls } = mockFetch();
     expect(await refreshGarminAuth({ ...auth, refresh: "" })).toEqual({ ok: false, reason: "rejected" });
