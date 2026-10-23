@@ -22,7 +22,7 @@
     {
       "name": "TOOL_LIMIT",
       "namespace_id": "1002",
-      // Per user: keeps one account from getting Pons blocked by Garmin.
+      // Per user, approximate and per Cloudflare location: a guard against runaway loops, not an exact quota.
       "simple": { "limit": 60, "period": 60 }
     }
   ],

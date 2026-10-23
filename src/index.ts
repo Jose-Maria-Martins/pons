@@ -62,7 +62,9 @@ const mcpHandler = createMcpHandler(() => createServer(), { route: "/mcp" });
 
 /** Record the client's name and version when the request is an MCP initialize. Never blocks or breaks the request. */
 async function trackInitialize(request: Request, env: Env, props: Partial<Props> | undefined, platform: ReturnType<typeof platformOf>) {
-  if (request.method !== "POST" || Number(request.headers.get("Content-Length") ?? 0) > 100_000) return;
+  // Analytics only: without a Content-Length (a chunked body) the size is unknown, so skip it.
+  const length = Number(request.headers.get("Content-Length"));
+  if (request.method !== "POST" || !(length > 0 && length <= 100_000)) return;
   try {
     const info = initializeInfo(await request.clone().json());
     if (info) track(env, { type: "initialize", name: info.name, detail: info.version, platform, userId: props?.userId });
