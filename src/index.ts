@@ -1,19 +1,27 @@
 import OAuthProvider, { OAuthError, type TokenExchangeCallbackOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "agents/mcp/server";
+import { initializeInfo, platformOf, requestContext, track } from "./analytics.js";
 import type { Props } from "./garmin/api.js";
 import { handleAuthorize } from "./login/authorize.js";
 import { refreshGarminAuth } from "./login/garmin.js";
+import { privacyPage } from "./login/page.js";
 import { createServer } from "./mcp/server.js";
 
 // Refresh Garmin's token when it has less than this left. Pons access tokens last 1 h, so a token
 // with 3 h left is still valid for every access token issued from it.
 const REFRESH_WITHIN_SECONDS = 3 * 3600;
 
-/** On a Pons refresh, keep the Garmin token fresh. Garmin's answer decides whether the grant lives on. */
-async function tokenExchangeCallback({ grantType, props }: TokenExchangeCallbackOptions<Env>) {
+/**
+ * On a Pons refresh, keep the Garmin token fresh. Garmin's answer decides whether the grant lives on.
+ * Grants made before props held the user id get it here, on their first refresh.
+ */
+export async function tokenExchangeCallback({ grantType, props, userId }: TokenExchangeCallbackOptions<Env>) {
   if (grantType !== "refresh_token") return;
-  const current = props as Props;
-  if (current.garmin.expiresAt - Math.floor(Date.now() / 1000) > REFRESH_WITHIN_SECONDS) return;
+  const stored = props as Props;
+  const current: Props = { ...stored, userId };
+  if (current.garmin.expiresAt - Math.floor(Date.now() / 1000) > REFRESH_WITHIN_SECONDS) {
+    return stored.userId === userId ? undefined : { newProps: current };
+  }
 
   const result = await refreshGarminAuth(current.garmin);
   if (result.ok) return { newProps: { ...current, garmin: result.auth } };
@@ -32,13 +40,30 @@ async function tokenExchangeCallback({ grantType, props }: TokenExchangeCallback
 
 const mcpHandler = createMcpHandler(() => createServer(), { route: "/mcp" });
 
+/** Record the client's name and version when the request is an MCP initialize. Never blocks or breaks the request. */
+async function trackInitialize(request: Request, env: Env, props: Partial<Props> | undefined, platform: ReturnType<typeof platformOf>) {
+  if (request.method !== "POST" || Number(request.headers.get("Content-Length") ?? 0) > 100_000) return;
+  try {
+    const info = initializeInfo(await request.clone().json());
+    if (info) track(env, { type: "initialize", name: info.name, detail: info.version, platform, userId: props?.userId });
+  } catch {
+    // Not JSON: the MCP handler will answer it.
+  }
+}
+
 const apiHandler = {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) => mcpHandler(request, env, ctx),
+  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
+    const platform = platformOf(request.headers.get("User-Agent"));
+    await trackInitialize(request, env, ctx.props as Partial<Props> | undefined, platform);
+    return requestContext.run({ env, platform }, () => mcpHandler(request, env, ctx));
+  },
 };
 
 const defaultHandler: ExportedHandler<Env> = {
   async fetch(request, env) {
-    if (new URL(request.url).pathname === "/authorize") return handleAuthorize(request, env);
+    const { pathname } = new URL(request.url);
+    if (pathname === "/authorize") return handleAuthorize(request, env);
+    if (pathname === "/privacy" && request.method === "GET") return privacyPage();
     return new Response("Pons: a read-only Garmin connector for Claude.", { status: 404 });
   },
 };

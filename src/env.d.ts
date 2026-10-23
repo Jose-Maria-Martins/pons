@@ -11,6 +11,8 @@ declare global {
       OAUTH_KV: KVNamespace;
       OAUTH_PROVIDER: OAuthHelpers;
       LOGIN_LIMIT: RateLimit;
+      TOOL_LIMIT: RateLimit;
+      PONS_EVENTS: AnalyticsEngineDataset;
       TURNSTILE_SITE_KEY: string;
       TURNSTILE_SECRET: string;
       HASH_KEY: string;
