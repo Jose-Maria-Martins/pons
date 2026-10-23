@@ -17,6 +17,7 @@ To limit abuse, Pons also counts sign-in attempts per IP address and per scrambl
 ## What Pons stores
 
 - A Garmin login token (not your password), encrypted, in the connection that lets Claude keep reading your data. It is kept for up to 30 days.
+- Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.
 - If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.
 
 ## What Pons never stores

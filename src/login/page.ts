@@ -146,6 +146,7 @@ export function privacyPage(): Response {
 <h2>What Pons stores</h2>
 <ul>
 <li>A Garmin login token (not your password), encrypted, in the connection that lets Claude keep reading your data. It is kept for up to 30 days.</li>
+<li>Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.</li>
 <li>If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.</li>
 </ul>
 <h2>What Pons never stores</h2>

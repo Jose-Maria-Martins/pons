@@ -103,7 +103,7 @@ async function finish(
   headers: Headers,
 ): Promise<Response> {
   const userId = await hmacHex(env.HASH_KEY, "garmin:" + login.garminId);
-  const props: Props = { garmin: login.auth, displayName: login.displayName, userId };
+  const props: Props = { garmin: login.auth, displayName: login.displayName, userId, timeZone: login.timeZone };
   const { redirectTo } = await env.OAUTH_PROVIDER.completeAuthorization({
     request,
     userId,

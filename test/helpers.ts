@@ -80,6 +80,8 @@ export interface Connected {
   accessToken: string;
   refreshToken: string;
   clientId: string;
+  /** Seconds the Pons access token lasts, as Pons told the client. */
+  expiresIn: number;
 }
 
 // Each connection uses its own address and email, so the login rate limits never get in the way.
@@ -88,8 +90,9 @@ let connections = 0;
 /**
  * Full OAuth flow with a fake Garmin. `garminExpiresIn` is how many seconds the fake Garmin token lasts.
  * `garminGuid` is the fake Garmin account: connections with the same one belong to the same Pons user.
+ * `timeZone` is the time zone in the fake Garmin settings; null makes the settings call fail.
  */
-export async function connect(garminExpiresIn = 3600, garminGuid = "fake-guid"): Promise<Connected> {
+export async function connect(garminExpiresIn = 3600, garminGuid = "fake-guid", timeZone: string | null = "Europe/London"): Promise<Connected> {
   const n = ++connections;
   const { path, handle, cookie, clientId } = await openLoginPage();
   mockFetch(
@@ -97,6 +100,7 @@ export async function connect(garminExpiresIn = 3600, garminGuid = "fake-guid"):
     on("https://sso.garmin.com/", () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
     on("https://diauth.garmin.com/", () => json({ access_token: "fake-garmin-access", refresh_token: "fake-refresh", expires_in: garminExpiresIn })),
     on("https://connectapi.garmin.com/userprofile-service/socialProfile", () => json({ displayName: "fake-display-name", garminGUID: garminGuid, fullName: "Test Person" })),
+    on("https://connectapi.garmin.com/userprofile-service/userprofile/settings", () => (timeZone ? json({ timeZone }) : json({}, 500))),
   );
   const done = await post(path, cookie, { handle, email: `connect${n}@example.com`, password: "fake-password", "cf-turnstile-response": "ok" }, { "CF-Connecting-IP": `192.0.2.${n % 250}` });
   const code = new URL(done.headers.get("Location") ?? "").searchParams.get("code") ?? "";
@@ -107,8 +111,8 @@ export async function connect(garminExpiresIn = 3600, garminGuid = "fake-guid"):
 async function exchange(params: Record<string, string>, clientId: string): Promise<Connected> {
   const res = await tokenRequest(params);
   expect(res.status).toBe(200);
-  const body = (await res.json()) as { access_token: string; refresh_token: string };
-  return { accessToken: body.access_token, refreshToken: body.refresh_token, clientId };
+  const body = (await res.json()) as { access_token: string; refresh_token: string; expires_in: number };
+  return { accessToken: body.access_token, refreshToken: body.refresh_token, clientId, expiresIn: body.expires_in };
 }
 
 const tokenRequest = (params: Record<string, string>) =>
