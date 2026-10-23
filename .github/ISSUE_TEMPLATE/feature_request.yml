@@ -1,0 +1,18 @@
+name: Feature request
+description: Suggest something you would like to ask Claude about your Garmin data
+labels: [enhancement]
+body:
+  - type: textarea
+    id: ask
+    attributes:
+      label: What would you like to ask Claude about your Garmin data?
+      placeholder: "For example: how did my resting heart rate change over the last month?"
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why?
+      description: What would this help you do?
+    validations:
+      required: true
