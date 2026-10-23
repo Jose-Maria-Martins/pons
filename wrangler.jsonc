@@ -9,8 +9,7 @@
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",
-      // Placeholder. Replace with the id from `npx wrangler kv namespace create OAUTH_KV` (see README).
-      "id": "00000000000000000000000000000000"
+      "id": "6d16409b04594516911af344eacee52f"
     }
   ],
   "ratelimits": [
@@ -22,8 +21,8 @@
     }
   ],
   "vars": {
-    // Public Turnstile site key. This is Cloudflare's always-pass test key: replace it with your widget's key.
-    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA"
+    // Public Turnstile site key for the "Pons" widget. Local dev overrides it with the test key in .dev.vars.
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFhBVqnm5x2-CpZb"
   },
   "observability": { "enabled": true }
 }
