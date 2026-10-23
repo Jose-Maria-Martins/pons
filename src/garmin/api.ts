@@ -42,6 +42,8 @@ export interface GarminAuth {
 export interface Props {
   garmin: GarminAuth;
   displayName: string;
+  /** HMAC of the Garmin id. Grants made before this field existed get it on their next refresh. */
+  userId: string;
 }
 
 export type GarminErrorKind = "not_connected" | "rate_limit" | "unreachable" | "http";
