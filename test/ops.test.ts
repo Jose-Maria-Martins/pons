@@ -32,15 +32,16 @@ describe("disconnect", () => {
 
 describe("user id in props", () => {
   const garmin = { access: "fake-access", refresh: "fake-refresh", clientId: "FAKE_CLIENT", expiresAt: 4_000_000_000 };
+  const timeZone = "Europe/London";
   const refresh = (props: object) =>
     tokenExchangeCallback({ grantType: "refresh_token", props, userId: "user-1", grantId: "g", clientId: "c" } as Parameters<typeof tokenExchangeCallback>[0]);
 
   it("is added to a grant made before props held it, on its first refresh", async () => {
-    expect(await refresh({ garmin, displayName: "fake-display-name" })).toEqual({ newProps: { garmin, displayName: "fake-display-name", userId: "user-1" } });
+    expect(await refresh({ garmin, displayName: "fake-display-name", timeZone })).toEqual({ newProps: { garmin, displayName: "fake-display-name", timeZone, userId: "user-1" } });
   });
 
   it("leaves a grant that already has it alone", async () => {
-    expect(await refresh({ garmin, displayName: "fake-display-name", userId: "user-1" })).toBeUndefined();
+    expect(await refresh({ garmin, displayName: "fake-display-name", timeZone, userId: "user-1" })).toBeUndefined();
   });
 });
 

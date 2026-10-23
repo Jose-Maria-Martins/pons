@@ -1,9 +1,9 @@
 import OAuthProvider, { OAuthError, type TokenExchangeCallbackOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "agents/mcp/server";
 import { initializeInfo, platformOf, requestContext, track } from "./analytics.js";
-import type { Props } from "./garmin/api.js";
+import type { GarminAuth, Props } from "./garmin/api.js";
 import { handleAuthorize } from "./login/authorize.js";
-import { refreshGarminAuth } from "./login/garmin.js";
+import { fetchTimeZone, refreshGarminAuth } from "./login/garmin.js";
 import { privacyPage } from "./login/page.js";
 import { createServer } from "./mcp/server.js";
 
@@ -11,20 +11,40 @@ import { createServer } from "./mcp/server.js";
 // with 3 h left is still valid for every access token issued from it.
 const REFRESH_WITHIN_SECONDS = 3 * 3600;
 
+/** A Pons access token must not outlive the Garmin token inside it: give it a shorter life when Garmin's has under an hour left. */
+function accessTokenTTLFor(garmin: GarminAuth): { accessTokenTTL: number } | undefined {
+  const remaining = garmin.expiresAt - Math.floor(Date.now() / 1000);
+  return remaining < 3600 ? { accessTokenTTL: Math.max(60, remaining - 60) } : undefined;
+}
+
 /**
  * On a Pons refresh, keep the Garmin token fresh. Garmin's answer decides whether the grant lives on.
- * Grants made before props held the user id get it here, on their first refresh.
+ * Grants made before props held the user id or the time zone get them here, on their first refresh.
+ * Either grant type caps the Pons access token's life at what is left of the Garmin token's.
  */
 export async function tokenExchangeCallback({ grantType, props, userId }: TokenExchangeCallbackOptions<Env>) {
-  if (grantType !== "refresh_token") return;
   const stored = props as Props;
-  const current: Props = { ...stored, userId };
-  if (current.garmin.expiresAt - Math.floor(Date.now() / 1000) > REFRESH_WITHIN_SECONDS) {
-    return stored.userId === userId ? undefined : { newProps: current };
+  if (grantType === "authorization_code") return accessTokenTTLFor(stored.garmin);
+  if (grantType !== "refresh_token") return;
+  let current: Props = { ...stored, userId };
+  if (current.garmin.expiresAt - Math.floor(Date.now() / 1000) <= REFRESH_WITHIN_SECONDS) {
+    const refreshed = await refreshGarmin(current.garmin);
+    current = { ...current, garmin: refreshed };
   }
+  if (!current.timeZone) {
+    // One try; a failure leaves it missing, so the next refresh tries again.
+    const timeZone = await fetchTimeZone(current.garmin.access);
+    if (timeZone) current = { ...current, timeZone };
+  }
+  const changed = current.garmin !== stored.garmin || current.userId !== stored.userId || current.timeZone !== stored.timeZone;
+  const cap = accessTokenTTLFor(current.garmin);
+  return changed || cap ? { ...(changed ? { newProps: current } : {}), ...cap } : undefined;
+}
 
-  const result = await refreshGarminAuth(current.garmin);
-  if (result.ok) return { newProps: { ...current, garmin: result.auth } };
+/** The refreshed Garmin token. If Garmin refuses or is down, throws the OAuth error that decides whether the grant lives on. */
+async function refreshGarmin(garmin: GarminAuth): Promise<GarminAuth> {
+  const result = await refreshGarminAuth(garmin);
+  if (result.ok) return result.auth;
   console.log(JSON.stringify({ pons_garmin_refresh: result.reason }));
   if (result.reason === "rejected") {
     // Garmin no longer accepts this login: revoke the grant, so Claude asks the user to reconnect.

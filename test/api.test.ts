@@ -11,7 +11,10 @@ const props: Props = {
 };
 const API = "https://connectapi.garmin.com";
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
 
 describe("daily_overview", () => {
   it("shapes the day, sleep, hrv and readiness", async () => {
@@ -88,7 +91,9 @@ describe("sleep_history", () => {
 });
 
 describe("connection_status", () => {
-  it("returns name, units and last sync", async () => {
+  it("returns name, units, last sync, time zone and the local date", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2030-03-15T21:00:00Z"));
     mockFetch(
       on(`${API}/userprofile-service/socialProfile`, () => json({ fullName: "Test Person", displayName: "fake-display-name" })),
       on(`${API}/userprofile-service/userprofile/user-settings`, () => json({ userData: { measurementSystem: "metric" } })),
@@ -99,7 +104,11 @@ describe("connection_status", () => {
       name: "Test Person",
       units: "metric",
       last_sync: "2030-03-14T07:00:00.0",
+      time_zone: "UTC",
+      today: "2030-03-15",
     });
+    expect(await new GarminApi({ ...props, timeZone: "Australia/Sydney" }).connectionStatus()).toMatchObject({ time_zone: "Australia/Sydney", today: "2030-03-16" });
+    expect(await new GarminApi({ ...props, timeZone: "Not/AZone" }).connectionStatus()).toMatchObject({ time_zone: "UTC", today: "2030-03-15" });
   });
 });
 
@@ -121,7 +130,7 @@ describe("errors", () => {
 
   it("returns plain isError results, never raw exceptions", async () => {
     for (const [error, text] of [
-      [new GarminError("not_connected", "x"), /reconnect Pons/],
+      [new GarminError("not_connected", "x"), /try again in a moment.*reconnect Pons/],
       [new GarminError("rate_limit", "x"), /limiting requests/],
       [new GarminError("unreachable", "x"), /Could not reach Garmin/],
       [new UserInputError("bad date"), /Invalid input: bad date/],

@@ -2,6 +2,7 @@
 // The password and the 2FA code go to Garmin and nowhere else: they are never stored or logged.
 
 import { API_BASE, NATIVE_HEADERS, type GarminAuth } from "../garmin/api.js";
+import { first } from "../garmin/shape.js";
 
 const SSO_BASE = "https://sso.garmin.com/mobile/api";
 const SSO_QUERY =
@@ -36,7 +37,7 @@ export interface MfaPending {
 export type LoginFailure = "bad_credentials" | "bad_code" | "rate_limited" | "unavailable";
 
 export type LoginResult =
-  | { ok: true; auth: GarminAuth; displayName: string; garminId: string }
+  | { ok: true; auth: GarminAuth; displayName: string; garminId: string; timeZone: string }
   | { ok: false; reason: LoginFailure }
   | { ok: false; reason: "mfa_required"; pending: MfaPending };
 
@@ -69,17 +70,31 @@ function sessionCookies(res: Response): string {
   return [...jar].map(([k, v]) => `${k}=${v}`).join("; ");
 }
 
-/** Garmin puts the app id it issued the token for in the JWT payload. Unverified; used only to pick the id to refresh with. */
-function clientIdFromJwt(token: string): string | undefined {
+/** The payload of a JWT, unverified: Pons only reads what Garmin put in its own token. */
+function jwtClaims(token: string): Json {
   try {
     const payload = token.split(".")[1];
-    if (!payload) return undefined;
+    if (!payload) return {};
     const claims: unknown = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
-    const id = (claims as Json).client_id;
-    return typeof id === "string" && id ? id : undefined;
+    return typeof claims === "object" && claims !== null ? (claims as Json) : {};
   } catch {
-    return undefined;
+    return {};
   }
+}
+
+/** Garmin puts the app id it issued the token for in the JWT payload. Used only to pick the id to refresh with. */
+function clientIdFromJwt(token: string): string | undefined {
+  const id = jwtClaims(token).client_id;
+  return typeof id === "string" && id ? id : undefined;
+}
+
+/** When Garmin's token stops working, in Unix seconds: the JWT `exp`, else `expires_in`, else an hour from now. */
+export function tokenExpiry(accessToken: string, expiresIn: unknown, now: number = Math.floor(Date.now() / 1000)): number {
+  const exp = jwtClaims(accessToken).exp;
+  if (typeof exp === "number" && Number.isFinite(exp)) return Math.floor(exp);
+  const seconds = typeof expiresIn === "string" && expiresIn.trim() !== "" ? Number(expiresIn) : expiresIn;
+  if (typeof seconds === "number" && Number.isFinite(seconds)) return now + Math.floor(seconds);
+  return now + 3600;
 }
 
 /** POST to Garmin's DI token endpoint on behalf of an app id. */
@@ -139,6 +154,20 @@ async function verifyCode(pending: MfaPending, code: string): Promise<{ ticket: 
   return Object.keys(body).length > 0 ? fail("bad_code") : fail("unavailable");
 }
 
+/** The user's IANA time zone from their Garmin settings, or undefined when Garmin does not give one. Never throws. */
+export async function fetchTimeZone(accessToken: string): Promise<string | undefined> {
+  try {
+    const res = await fetch(`${API_BASE}/userprofile-service/userprofile/settings`, {
+      headers: { ...NATIVE_HEADERS, Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
+    });
+    if (!res.ok) return undefined;
+    const zone = first(await readJson(res), "timeZone", "timezone");
+    return typeof zone === "string" && zone.trim() ? zone.trim() : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Step 3: service ticket -> DI bearer token. */
 async function exchangeTicket(ticket: string): Promise<GarminAuth | "rate_limited" | null> {
   for (const clientId of DI_CLIENT_IDS) {
@@ -147,12 +176,11 @@ async function exchangeTicket(ticket: string): Promise<GarminAuth | "rate_limite
     if (!res.ok) continue;
     const body = await readJson(res);
     if (typeof body.access_token !== "string") continue;
-    const expiresIn = typeof body.expires_in === "number" ? body.expires_in : 3600;
     return {
       access: body.access_token,
       refresh: typeof body.refresh_token === "string" ? body.refresh_token : "",
       clientId: clientIdFromJwt(body.access_token) ?? clientId,
-      expiresAt: Math.floor(Date.now() / 1000) + expiresIn,
+      expiresAt: tokenExpiry(body.access_token, body.expires_in),
     };
   }
   return null;
@@ -173,7 +201,9 @@ async function finishLogin(ticket: string): Promise<LoginResult> {
     const displayName = typeof profile.displayName === "string" ? profile.displayName : "";
     const garminId = String(profile.garminGUID ?? profile.profileId ?? "");
     if (!displayName || !garminId) return fail("unavailable");
-    return { ok: true, auth, displayName, garminId };
+    // A missing time zone must not stop the login: "today" falls back to the UTC date.
+    const timeZone = (await fetchTimeZone(auth.access)) ?? "UTC";
+    return { ok: true, auth, displayName, garminId, timeZone };
   } catch {
     return fail("unavailable");
   }
@@ -220,7 +250,6 @@ export async function refreshGarminAuth(auth: GarminAuth): Promise<RefreshResult
   if (!res.ok) return { ok: false, reason: "unavailable" };
   const body = await readJson(res);
   if (typeof body.access_token !== "string") return { ok: false, reason: "unavailable" };
-  const expiresIn = typeof body.expires_in === "number" ? body.expires_in : 3600;
   return {
     ok: true,
     auth: {
@@ -228,7 +257,7 @@ export async function refreshGarminAuth(auth: GarminAuth): Promise<RefreshResult
       // Garmin may rotate the refresh token; keep the old one when it doesn't.
       refresh: typeof body.refresh_token === "string" && body.refresh_token ? body.refresh_token : auth.refresh,
       clientId: clientIdFromJwt(body.access_token) ?? auth.clientId,
-      expiresAt: Math.floor(Date.now() / 1000) + expiresIn,
+      expiresAt: tokenExpiry(body.access_token, body.expires_in),
     },
   };
 }

@@ -8,7 +8,9 @@ import {
   first,
   hrvRows,
   pick,
+  localDate,
   recordRows,
+  resolveTimeZone,
   sleepRows,
   slim,
   timelineBuckets,
@@ -44,6 +46,8 @@ export interface Props {
   displayName: string;
   /** HMAC of the Garmin id. Grants made before this field existed get it on their next refresh. */
   userId: string;
+  /** The user's IANA time zone from Garmin, so "today" is their local date. Grants made before this field existed get it on their next refresh. */
+  timeZone?: string;
 }
 
 export type GarminErrorKind = "not_connected" | "rate_limit" | "unreachable" | "http";
@@ -112,8 +116,11 @@ export class GarminApi {
       this.tryGet("/wellness-service/wellness/syncTimestamp"),
     ]);
     const userData = (settings as Json | null)?.userData;
+    const timeZone = resolveTimeZone(this.props.timeZone);
     return {
       connected: true,
+      time_zone: timeZone,
+      today: localDate(new Date(), timeZone),
       name: first(profile, "fullName") ?? "",
       units: first(userData, "measurementSystem") ?? settings,
       last_sync: sync,
