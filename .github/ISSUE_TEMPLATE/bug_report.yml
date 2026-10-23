@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in Pons did not work as expected
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem in your own words.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: dropdown
+    id: app
+    attributes:
+      label: Which app were you using?
+      options:
+        - claude.ai (web)
+        - Claude desktop or mobile app
+        - Claude Code
+        - Other
+    validations:
+      required: true
+  - type: input
+    id: when
+    attributes:
+      label: Roughly when did it happen?
+      description: Date and time with your time zone, so it can be matched to the logs.
+      placeholder: "2026-11-02 around 18:30 UTC"
+    validations:
+      required: true
+  - type: checkboxes
+    id: no-personal-data
+    attributes:
+      label: Privacy check
+      options:
+        - label: I have not pasted any Garmin data, tokens, passwords or email addresses.
+          required: true
