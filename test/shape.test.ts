@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, chunks, dateRange, dayRow, first, parseDate, pick, sleepRows, slim, upcomingRange, UserInputError } from "../src/garmin/shape.js";
+import { addDays, chunks, dateRange, dayRow, first, localDate, parseDate, pick, resolveTimeZone, sleepRows, slim, upcomingRange, UserInputError } from "../src/garmin/shape.js";
 
 const NOW = new Date("2030-03-15T10:00:00Z");
 
@@ -42,6 +42,28 @@ describe("dates", () => {
     expect(parseDate("2030-02-28", NOW)).toBe("2030-02-28");
   });
 
+  it("uses the date in the user's time zone for today and yesterday", () => {
+    // Sydney is UTC+11 in March: 21:00 UTC is already 08:00 the next day there.
+    const sydney = new Date("2030-03-15T21:00:00Z");
+    expect(parseDate("today", sydney, "Australia/Sydney")).toBe("2030-03-16");
+    expect(parseDate("yesterday", sydney, "Australia/Sydney")).toBe("2030-03-15");
+    expect(parseDate("today", sydney)).toBe("2030-03-15");
+    // Los Angeles is UTC-7 in March: 03:00 UTC is still 20:00 the day before there.
+    const la = new Date("2030-03-15T03:00:00Z");
+    expect(parseDate("today", la, "America/Los_Angeles")).toBe("2030-03-14");
+    expect(parseDate("yesterday", la, "America/Los_Angeles")).toBe("2030-03-13");
+    expect(parseDate("2030-03-01", la, "America/Los_Angeles")).toBe("2030-03-01");
+  });
+
+  it("falls back to UTC for a time zone it does not know", () => {
+    const now = new Date("2030-03-15T21:00:00Z");
+    expect(parseDate("today", now, "Not/AZone")).toBe("2030-03-15");
+    expect(parseDate("today", now, "")).toBe("2030-03-15");
+    expect(resolveTimeZone("Not/AZone")).toBe("UTC");
+    expect(resolveTimeZone("Europe/London")).toBe("Europe/London");
+    expect(localDate(now, "Not/AZone")).toBe("2030-03-15");
+  });
+
   it("rejects things that are not real dates", () => {
     for (const bad of ["2030-02-30", "15/03/2030", "last week", "2030-3-5"]) {
       expect(() => parseDate(bad, NOW)).toThrow(UserInputError);
@@ -51,6 +73,11 @@ describe("dates", () => {
   it("builds a default range and swaps a reversed one", () => {
     expect(dateRange(undefined, undefined, 30, 366, NOW)).toEqual(["2030-02-14", "2030-03-15"]);
     expect(dateRange("2030-03-10", "2030-03-01", 30, 366, NOW)).toEqual(["2030-03-01", "2030-03-10"]);
+  });
+
+  it("ends the default range on the user's local today", () => {
+    const sydney = new Date("2030-03-15T21:00:00Z");
+    expect(dateRange(undefined, undefined, 3, 366, sydney, "Australia/Sydney")).toEqual(["2030-03-14", "2030-03-16"]);
   });
 
   it("refuses a range over the maximum", () => {
@@ -105,6 +132,11 @@ describe("upcomingRange", () => {
   it("looks ahead from today by default, and from a given day", () => {
     expect(upcomingRange(undefined, undefined, 14, 90, NOW)).toEqual(["2030-03-15", "2030-03-28"]);
     expect(upcomingRange("2030-04-01", undefined, 14, 90, NOW)).toEqual(["2030-04-01", "2030-04-14"]);
+  });
+
+  it("starts from the user's local today", () => {
+    const sydney = new Date("2030-03-15T21:00:00Z");
+    expect(upcomingRange(undefined, undefined, 3, 90, sydney, "Australia/Sydney")).toEqual(["2030-03-16", "2030-03-18"]);
   });
 
   it("swaps a reversed range and refuses one over the maximum", () => {

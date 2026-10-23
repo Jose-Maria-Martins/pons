@@ -12,8 +12,9 @@ Read-only access to the user's own Garmin Connect data (sleep, HRV, heart rate,
 stress, Body Battery, activities, training status, body composition, personal
 records, planned workouts).
 
-- Dates are YYYY-MM-DD; 'today' and 'yesterday' also work ('today' is the UTC
-  date). Today's data is partial until the watch syncs.
+- Dates are YYYY-MM-DD; 'today' and 'yesterday' also work ('today' is the
+  user's local date, from their Garmin time zone). Today's data is partial
+  until the watch syncs.
 - For trends, prefer the range tools (daily_trends, sleep_history, hrv_history,
   activities) over calling single-day tools many times.
 - day_timeline shows one day in 15-minute steps (heart rate, stress, Body
@@ -25,8 +26,9 @@ records, planned workouts).
 - Explain findings in plain language and compare against the user's own
   baseline rather than population norms. This is not medical advice: suggest a
   doctor for anything that looks like a health concern.
-- If the user isn't connected, or their Garmin login expired, ask them to
-  disconnect and reconnect Pons in their Claude connector settings.
+- If the user isn't connected, or Garmin keeps rejecting their login after a
+  retry, ask them to disconnect and reconnect Pons in their Claude connector
+  settings.
 `;
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: true } as const;
@@ -39,7 +41,7 @@ export function describeError(e: unknown): string {
   if (e instanceof GarminError) {
     switch (e.kind) {
       case "not_connected":
-        return "Not connected to Garmin, or the Garmin login expired. Ask the user to disconnect and reconnect Pons in their Claude connector settings, then try again.";
+        return "Garmin rejected the login. This is often brief: try again in a moment. If it keeps failing, ask the user to disconnect and reconnect Pons in their Claude connector settings.";
       case "rate_limit":
         return "Garmin is limiting requests right now. Wait a few minutes and try again.";
       case "unreachable":
@@ -124,6 +126,9 @@ function currentApi(): GarminApi {
   return new GarminApi(props as Props);
 }
 
+/** The user's Garmin time zone, which decides what 'today' is. Undefined falls back to UTC. */
+const userTimeZone = () => (getMcpAuthContext()?.props as Partial<Props> | undefined)?.timeZone;
+
 const rangeShape = {
   start_date: z.string().optional().describe("First day, YYYY-MM-DD. Defaults to 30 days before end_date."),
   end_date: z.string().optional().describe("Last day, YYYY-MM-DD, 'today' or 'yesterday'. Defaults to today."),
@@ -140,7 +145,7 @@ export function createServer(): McpServer {
     "connection_status",
     {
       title: "Garmin connection status",
-      description: "Check the Garmin connection and when the watch last synced.",
+      description: "Check the Garmin connection and when the watch last synced. Also gives the user's time zone and today's local date.",
       inputSchema: z.object({}),
       annotations: READ_ONLY,
     },
@@ -159,7 +164,7 @@ export function createServer(): McpServer {
       }),
       annotations: READ_ONLY,
     },
-    ({ date }) => call("daily_overview", async () => currentApi().dailyOverview(parseDate(date))),
+    ({ date }) => call("daily_overview", async () => currentApi().dailyOverview(parseDate(date, undefined, userTimeZone()))),
   );
 
   server.registerTool(
@@ -173,7 +178,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date }) =>
       call("sleep_history", async () => {
-        const [start, end] = dateRange(start_date, end_date, 30, 366);
+        const [start, end] = dateRange(start_date, end_date, 30, 366, undefined, userTimeZone());
         return currentApi().sleepHistory(start, end);
       }),
   );
@@ -190,7 +195,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date }) =>
       call("daily_trends", async () => {
-        const [start, end] = dateRange(start_date, end_date, 30, 366);
+        const [start, end] = dateRange(start_date, end_date, 30, 366, undefined, userTimeZone());
         return currentApi().dailyTrends(start, end);
       }),
   );
@@ -205,7 +210,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => call("sleep_night_detail", async () => currentApi().sleepNightDetail(parseDate(date))),
+    ({ date }) => call("sleep_night_detail", async () => currentApi().sleepNightDetail(parseDate(date, undefined, userTimeZone()))),
   );
 
   server.registerTool(
@@ -220,7 +225,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date }) =>
       call("hrv_history", async () => {
-        const [start, end] = dateRange(start_date, end_date, 30, 180);
+        const [start, end] = dateRange(start_date, end_date, 30, 180, undefined, userTimeZone());
         return currentApi().hrvHistory(start, end);
       }),
   );
@@ -245,7 +250,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date, activity_type }) =>
       call("activities", async () => {
-        const [start, end] = dateRange(start_date, end_date, 30, 366);
+        const [start, end] = dateRange(start_date, end_date, 30, 366, undefined, userTimeZone());
         return currentApi().activities(start, end, activity_type?.trim().toLowerCase() || undefined);
       }),
   );
@@ -278,7 +283,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => call("training_status", async () => currentApi().trainingStatus(parseDate(date))),
+    ({ date }) => call("training_status", async () => currentApi().trainingStatus(parseDate(date, undefined, userTimeZone()))),
   );
 
   server.registerTool(
@@ -293,7 +298,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date }) =>
       call("body_composition", async () => {
-        const [start, end] = dateRange(start_date, end_date, 90, 366);
+        const [start, end] = dateRange(start_date, end_date, 90, 366, undefined, userTimeZone());
         return currentApi().bodyComposition(start, end);
       }),
   );
@@ -308,7 +313,7 @@ export function createServer(): McpServer {
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },
-    ({ date }) => call("day_timeline", async () => currentApi().dayTimeline(parseDate(date))),
+    ({ date }) => call("day_timeline", async () => currentApi().dayTimeline(parseDate(date, undefined, userTimeZone()))),
   );
 
   server.registerTool(
@@ -339,7 +344,7 @@ export function createServer(): McpServer {
     },
     ({ start_date, end_date }) =>
       call("planned_workouts", async () => {
-        const [start, end] = upcomingRange(start_date, end_date, 14, 90);
+        const [start, end] = upcomingRange(start_date, end_date, 14, 90, undefined, userTimeZone());
         return currentApi().plannedWorkouts(start, end);
       }),
   );

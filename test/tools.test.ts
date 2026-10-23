@@ -308,11 +308,11 @@ describe("the tools over MCP", () => {
     expect(result.content[0]!.text).toMatch(/Invalid input/);
   });
 
-  it("tells the user to reconnect when Garmin rejects the login, and to wait when it limits requests", async () => {
+  it("asks for a retry first, then a reconnect, when Garmin rejects the login, and to wait when it limits requests", async () => {
     const session = await connect();
     mockFetch(() => json({}, 401));
     const rejected = (await message(await rpc(session.accessToken, "tools/call", { name: "personal_records", arguments: {} }))).result;
-    expect(rejected.content[0]!.text).toMatch(/reconnect Pons/);
+    expect(rejected.content[0]!.text).toMatch(/try again in a moment.*If it keeps failing.*reconnect Pons/);
 
     vi.restoreAllMocks();
     mockFetch(() => json({}, 429));
