@@ -146,6 +146,7 @@ export const rpc = (accessToken: string | null, method: string, params: object =
 export interface RpcMessage {
   result: {
     tools: { name: string; title?: string; annotations: { readOnlyHint: boolean; destructiveHint?: boolean } }[];
+    serverInfo: { name: string; title?: string; description?: string; websiteUrl?: string; icons?: { src: string; mimeType?: string; sizes?: string[] }[] };
     isError?: boolean;
     content: { type: string; text: string }[];
   };

@@ -6,6 +6,8 @@
   // nodejs_compat: the agents package needs node:async_hooks.
   // global_fetch_strictly_public: lets the OAuth library fetch client metadata documents.
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Bundle PNG files as binary modules (the icon is served from the Worker).
+  "rules": [{ "type": "Data", "globs": ["**/*.png"], "fallthrough": true }],
   "kv_namespaces": [
     {
       "binding": "OAUTH_KV",

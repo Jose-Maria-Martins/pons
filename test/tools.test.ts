@@ -119,9 +119,81 @@ describe("activities", () => {
     expect(rows[200]).toEqual({ note: expect.stringContaining("first 200 activities") });
   });
 
+  it("with a limit and no start date, sends no dates and makes one request", async () => {
+    const { spy } = mockFetch(on(`${API}/activitylist-service/activities/search/activities`, () => json([run(1), run(2), run(3)])));
+
+    const rows = await api().activities(undefined, undefined, "running", 3);
+
+    expect(rows.map((r) => r.id)).toEqual([1, 2, 3]);
+    expect(spy).toHaveBeenCalledTimes(1);
+    const url = new URL(String(spy.mock.calls[0]![0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ start: "0", limit: "3", activityType: "running" });
+  });
+
+  it("with a limit and a date range, stops once it has enough and asks for no more than needed", async () => {
+    const { spy } = mockFetch((url) => {
+      if (!url.pathname.startsWith("/activitylist-service")) return undefined;
+      const start = Number(url.searchParams.get("start"));
+      return json(Array.from({ length: Number(url.searchParams.get("limit")) }, (_, i) => run(start + i + 1)));
+    });
+
+    const rows = await api().activities("2030-01-01", "2030-12-31", undefined, 45);
+
+    expect(rows).toHaveLength(45);
+    expect(rows.every((r) => !("note" in r))).toBe(true);
+    const sent = spy.mock.calls.map(([u]) => Object.fromEntries(new URL(String(u)).searchParams));
+    expect(sent.map((p) => [p.start, p.limit])).toEqual([["0", "20"], ["20", "20"], ["40", "5"]]);
+    expect(sent[0]).toMatchObject({ startDate: "2030-01-01", endDate: "2030-12-31" });
+  });
+
+  it("with a limit, stops at a short page", async () => {
+    const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([run(1), run(2)])));
+    expect(await api().activities("2030-01-01", "2030-01-31", undefined, 30)).toHaveLength(2);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
   it("returns an empty list when there are no workouts", async () => {
     mockFetch(on(`${API}/activitylist-service`, () => json([])));
     expect(await api().activities("2030-01-01", "2030-01-02")).toEqual([]);
+  });
+});
+
+describe("activities tool limit", () => {
+  it("skips the 30-day default when only a limit is given", async () => {
+    const { accessToken } = await connect();
+    const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([{ activityId: 1, activityType: { typeKey: "running" } }])));
+
+    const result = (await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit: 5, activity_type: " Running " } }))).result;
+
+    expect(result.isError).toBeFalsy();
+    expect(JSON.parse(result.content[0]!.text)).toEqual([{ id: 1, type: "running" }]);
+    const url = new URL(String(spy.mock.calls[0]![0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ start: "0", limit: "5", activityType: "running" });
+  });
+
+  it("looks back up to a year when the limit comes with only an end date", async () => {
+    const { accessToken } = await connect();
+    const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([])));
+    await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit: 2, end_date: "2030-03-01" } }));
+    const url = new URL(String(spy.mock.calls[0]![0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ startDate: "2029-03-01", endDate: "2030-03-01", start: "0", limit: "2" });
+  });
+
+  it("keeps the date range when a start date comes with the limit", async () => {
+    const { accessToken } = await connect();
+    const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([])));
+    await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit: 2, start_date: "2030-02-01", end_date: "2030-03-01" } }));
+    const url = new URL(String(spy.mock.calls[0]![0]));
+    expect(Object.fromEntries(url.searchParams)).toMatchObject({ startDate: "2030-02-01", endDate: "2030-03-01", limit: "2" });
+  });
+
+  it.each([0, 101, 2.5, "five"])("rejects a limit of %j without calling Garmin", async (limit) => {
+    const { accessToken } = await connect();
+    const { spy } = mockFetch(() => json([]));
+    const result = (await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit } }))).result;
+    expect(result.isError).toBe(true);
+    expect(result.content[0]!.text).toMatch(/limit/);
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 
@@ -328,6 +400,29 @@ describe("personal_records", () => {
       { type_id: 3, sport: "running", value: 1450.5, date: "2030-02-01T08:00:00.0", activity_id: 11, activity_name: "Park race", record: "fastest 5 km", unit: "s" },
       { type_id: 7, sport: "running", value: 21097, record: "longest run", unit: "m" },
       { type_id: 99, sport: "cycling", value: 3 },
+    ]);
+  });
+
+  it("labels the step and streak records, which belong to no sport", async () => {
+    mockFetch(
+      on(`${API}/personalrecord-service/personalrecord/prs/fake-display-name`, () =>
+        json([
+          { typeId: 12, value: 40000 },
+          { typeId: 13, activityType: null, value: 70000 },
+          { typeId: 14, value: 120000 },
+          { typeId: 15, value: 9 },
+          { typeId: 16, value: 3 },
+          { typeId: 17, value: 1 },
+        ]),
+      ),
+    );
+    expect(await api().personalRecords()).toEqual([
+      { type_id: 12, value: 40000, record: "most steps in a day", unit: "steps" },
+      { type_id: 13, value: 70000, record: "most steps in a week", unit: "steps" },
+      { type_id: 14, value: 120000, record: "most steps in a month", unit: "steps" },
+      { type_id: 15, value: 9, record: "longest step-goal streak", unit: "days" },
+      { type_id: 16, value: 3, record: "current step-goal streak", unit: "days" },
+      { type_id: 17, value: 1 },
     ]);
   });
 });

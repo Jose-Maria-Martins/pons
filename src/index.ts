@@ -1,5 +1,6 @@
 import OAuthProvider, { OAuthError, type TokenExchangeCallbackOptions } from "@cloudflare/workers-oauth-provider";
 import { createMcpHandler } from "agents/mcp/server";
+import icon from "../assets/icon.png";
 import { initializeInfo, platformOf, requestContext, track } from "./analytics.js";
 import type { GarminAuth, Props } from "./garmin/api.js";
 import { handleAuthorize } from "./login/authorize.js";
@@ -58,7 +59,7 @@ async function refreshGarmin(garmin: GarminAuth): Promise<GarminAuth> {
   });
 }
 
-const mcpHandler = createMcpHandler(() => createServer(), { route: "/mcp" });
+const mcpHandler = createMcpHandler(({ requestInfo }) => createServer(requestInfo && new URL(requestInfo.url).origin), { route: "/mcp" });
 
 /** Record the client's name and version when the request is an MCP initialize. Never blocks or breaks the request. */
 async function trackInitialize(request: Request, env: Env, props: Partial<Props> | undefined, platform: ReturnType<typeof platformOf>) {
@@ -86,6 +87,9 @@ const defaultHandler: ExportedHandler<Env> = {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
     if (pathname === "/privacy" && request.method === "GET") return privacyPage(env.SOURCE_URL);
+    if ((pathname === "/icon.png" || pathname === "/favicon.ico") && request.method === "GET") {
+      return new Response(icon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+    }
     return new Response("Pons: a read-only Garmin connector for Claude.", { status: 404 });
   },
 };

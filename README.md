@@ -16,7 +16,7 @@ Pons is read-only. No tool writes to your Garmin account. The one tool that chan
 | `daily_trends` | One row per day: steps, calories, resting HR, stress, Body Battery, intensity minutes, sleep time (default 30 days, max 366). |
 | `sleep_night_detail` | One night in detail: stages, score factors, overnight HRV, SpO2, respiration. |
 | `hrv_history` | Nightly HRV with the 7-day average, baseline range and status (default 30 days, max 180). |
-| `activities` | Workouts in a range with distance, duration, pace or speed, heart rate, training effect and load (default 30 days, max 366, at most 200 workouts), optionally by type. |
+| `activities` | Workouts in a range with distance, duration, pace or speed, heart rate, training effect and load (default 30 days, max 366, at most 200 workouts), optionally by type, or just the N most recent with `limit`. |
 | `activity_detail` | One workout with laps, time in heart rate zones and weather. |
 | `training_status` | Training status and load, readiness, VO2 max, race predictions, endurance score, fitness age. |
 | `body_composition` | Weight and body composition (default 90 days, max 366). This is also the weight history tool: Garmin serves both from the same endpoint. |
@@ -115,7 +115,7 @@ curl "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/analytics_engine
 
 | File | Purpose |
 |---|---|
-| `src/index.ts` | Worker entry: OAuth provider, routes `/mcp`, `/authorize` and `/privacy` |
+| `src/index.ts` | Worker entry: OAuth provider, routes `/mcp`, `/authorize`, `/privacy` and the icon (`/icon.png`, `/favicon.ico`) |
 | `src/login/authorize.ts` | `/authorize` flow: Turnstile, rate limits, Garmin login, finish the grant |
 | `src/login/page.ts` | The sign-in and privacy pages and their security headers |
 | `src/login/garmin.ts` | Garmin sign-in: SSO login, 2FA code, token exchange, profile, token refresh |
