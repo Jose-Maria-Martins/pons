@@ -21,6 +21,8 @@ describe("GET /authorize", () => {
     expect(csp).toContain("script-src 'nonce-");
     expect(csp).toContain("https://challenges.cloudflare.com");
     expect(csp).not.toContain("unsafe-inline");
+    expect(csp).toContain("img-src 'self'");
+    expect(html).toContain('<link rel="icon" href="/icon.png">');
     expect(page.headers.get("Cache-Control")).toBe("no-store");
     expect(page.headers.get("Referrer-Policy")).toBe("no-referrer");
   });

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { localDate } from "../src/garmin/shape.js";
-import { connect, json, message, mockFetch, on, rpc } from "./helpers.js";
+import { connect, json, message, mockFetch, on, ORIGIN, rpc, send } from "./helpers.js";
 
 const API = "https://connectapi.garmin.com";
 
@@ -115,6 +115,15 @@ describe("/mcp", () => {
     expect(text).not.toContain("UTC");
   });
 
+  it("names itself Pons, with an icon and website on the request's own origin", async () => {
+    const { accessToken } = await connect();
+    const res = await rpc(accessToken, "initialize", { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "test", version: "1" } });
+    const info = (await message(res)).result.serverInfo;
+    expect(info).toMatchObject({ name: "pons", title: "Pons", websiteUrl: ORIGIN });
+    expect(info.icons).toEqual([{ src: `${ORIGIN}/icon.png`, mimeType: "image/png", sizes: ["512x512"] }]);
+    expect(info.description).toMatch(/Read-only/);
+  });
+
   it("asks for a retry, then a reconnect of Pons, when Garmin rejects the login", async () => {
     const { accessToken } = await connect();
     mockFetch(() => json({}, 401));
@@ -122,5 +131,20 @@ describe("/mcp", () => {
     const result = (await message(res)).result;
     expect(result.isError).toBe(true);
     expect(result.content[0]?.text).toMatch(/try again in a moment.*If it keeps failing.*disconnect and reconnect Pons/);
+  });
+});
+
+describe("icon", () => {
+  it.each(["/icon.png", "/favicon.ico"])("serves the PNG at %s", async (path) => {
+    const res = await send(path);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("image/png");
+    expect(res.headers.get("Cache-Control")).toBe("public, max-age=86400");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect([...bytes.slice(1, 4)]).toEqual([0x50, 0x4e, 0x47]);
+  });
+
+  it("answers GET only", async () => {
+    expect((await send("/icon.png", { method: "POST" })).status).toBe(404);
   });
 });
