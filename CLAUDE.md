@@ -35,6 +35,7 @@ npm run dev        # wrangler dev, needs .dev.vars (copy .dev.vars.example)
 - **Keep responses small.** Pass Garmin responses through `slim()` or shape them in `shape.ts`. Prefer range endpoints over looping per day.
 - **The password is never stored or logged.** Logs hold outcome names and status codes only.
 - **Dependencies are pinned** to exact versions, and `package-lock.json` is committed. Prefer official Cloudflare, MCP, zod, TypeScript, Vitest and ESLint packages. Review a new dependency before adding it.
+- **CI actions are pinned to commit SHAs**, and Dependabot proposes updates. Review them like any dependency bump.
 - **No deploys from CI** and no secrets in code. Secrets go through `wrangler secret`.
 - Tests never contact Garmin. Mock `fetch` (see `test/helpers.ts`).
 
