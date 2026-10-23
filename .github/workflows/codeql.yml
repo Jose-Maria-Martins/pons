@@ -12,8 +12,9 @@ permissions:
 
 jobs:
   analyze:
-    # Code scanning needs GitHub Advanced Security on private repos. Skip (not fail) while private.
-    if: ${{ !github.event.repository.private }}
+    # Code scanning needs GitHub Advanced Security on private repos. Skip (not fail) while private;
+    # "== false" also skips when an event (such as schedule) carries no repository field.
+    if: ${{ github.event.repository.private == false }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
