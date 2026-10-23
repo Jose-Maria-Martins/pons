@@ -134,9 +134,14 @@ export function messagePage(nonce: string, text: string, status = 400): Response
 }
 
 /** The privacy page at /privacy. Keep it in step with PRIVACY.md and with what src/analytics.ts writes. */
-export function privacyPage(): Response {
+export function privacyPage(sourceUrl = ""): Response {
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
-  const body = `<p>Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic.</p>
+  const source = sourceUrl.trim().replace(/\/+$/, "");
+  const openSource = source ? ` It is open source: <a href="${esc(source)}" rel="noopener">read the code</a>.` : "";
+  const contact = source
+    ? `open an issue at <a href="${esc(source)}/issues" rel="noopener">${esc(source)}/issues</a>.`
+    : "contact the person who shared Pons with you.";
+  const body = `<p>Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic.${openSource}</p>
 <h2>What Pons collects</h2>
 <p>Usage statistics only, and nothing about your health:</p>
 <ul>
@@ -160,7 +165,7 @@ export function privacyPage(): Response {
 <h2>Delete everything</h2>
 <p>Ask Claude to disconnect Pons. That deletes the stored connection and the Garmin token. Then remove the Pons connector in Claude's settings.</p>
 <h2>Contact</h2>
-<p>Questions or problems: <a href="https://github.com/Jose-Maria-Martins/pons" rel="noopener">github.com/Jose-Maria-Martins/pons</a>.</p>`;
+<p>Questions or problems: ${contact}</p>`;
   const res = shell(nonce, body, "", "Pons privacy");
   res.headers.set("Cache-Control", "public, max-age=3600");
   return res;

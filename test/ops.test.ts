@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dataPoint, initializeInfo, platformOf } from "../src/analytics.js";
 import { tokenExchangeCallback } from "../src/index.js";
+import { privacyPage } from "../src/login/page.js";
 import { connect, json, message, mockFetch, on, openLoginPage, post, refreshRequest, rpc, send } from "./helpers.js";
 
 const SITEVERIFY = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
@@ -225,6 +226,23 @@ describe("/privacy", () => {
     expect(html).toContain("never stores");
     expect(html).not.toContain("<script");
     expect(res.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
+  });
+
+  it("has no source link, and points to whoever shared Pons, while SOURCE_URL is empty", async () => {
+    const html = await (await send("/privacy")).text();
+    expect(html).toContain("contact the person who shared Pons with you");
+    expect(html).not.toContain("open source");
+    expect(html).not.toContain("github.com");
+    expect(html).not.toContain("<a href=\"http");
+  });
+
+  it("links the code and its issues when SOURCE_URL is set", async () => {
+    const html = await privacyPage("https://git.example.test/someone/pons/").text();
+    expect(html).toContain("It is open source");
+    expect(html).toContain('<a href="https://git.example.test/someone/pons" rel="noopener">read the code</a>');
+    expect(html).toContain('open an issue at <a href="https://git.example.test/someone/pons/issues"');
+    expect(html).not.toContain("contact the person who shared");
+    expect(html).not.toContain("<script");
   });
 
   it("is linked from the login page", async () => {

@@ -85,7 +85,7 @@ const defaultHandler: ExportedHandler<Env> = {
   async fetch(request, env) {
     const { pathname } = new URL(request.url);
     if (pathname === "/authorize") return handleAuthorize(request, env);
-    if (pathname === "/privacy" && request.method === "GET") return privacyPage();
+    if (pathname === "/privacy" && request.method === "GET") return privacyPage(env.SOURCE_URL);
     return new Response("Pons: a read-only Garmin connector for Claude.", { status: 404 });
   },
 };
