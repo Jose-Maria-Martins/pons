@@ -367,7 +367,8 @@ export function timelineBuckets(
 // -- Personal records and planned workouts ---------------------------------------
 
 // Garmin's record types for running (from the garminconnect library's documentation).
-const RUNNING_RECORDS: Record<number, { label: string; unit: "s" | "m" }> = {
+type RecordUnit = "s" | "m" | "steps" | "days";
+const RUNNING_RECORDS: Record<number, { label: string; unit: RecordUnit }> = {
   1: { label: "fastest 1 km", unit: "s" },
   2: { label: "fastest 1 mile", unit: "s" },
   3: { label: "fastest 5 km", unit: "s" },
@@ -375,6 +376,16 @@ const RUNNING_RECORDS: Record<number, { label: string; unit: "s" | "m" }> = {
   5: { label: "fastest half marathon", unit: "s" },
   6: { label: "fastest marathon", unit: "s" },
   7: { label: "longest run", unit: "m" },
+};
+
+// Step and streak records, not tied to a sport. 12-16 are inferred from a real user's values and Garmin's
+// records page, not from Garmin documentation.
+const STEP_RECORDS: Record<number, { label: string; unit: RecordUnit }> = {
+  12: { label: "most steps in a day", unit: "steps" },
+  13: { label: "most steps in a week", unit: "steps" },
+  14: { label: "most steps in a month", unit: "steps" },
+  15: { label: "longest step-goal streak", unit: "days" },
+  16: { label: "current step-goal streak", unit: "days" },
 };
 
 /** Personal records as compact rows. Times are in seconds, distances in metres. */
@@ -388,8 +399,10 @@ export function recordRows(raw: unknown): Json[] {
       activity_id: ["activityId"],
       activity_name: ["activityName"],
     });
-    const known = typeof r.typeId === "number" ? RUNNING_RECORDS[r.typeId] : undefined;
-    if (known && (r.activityType === undefined || r.activityType === "running")) {
+    const running = typeof r.typeId === "number" ? RUNNING_RECORDS[r.typeId] : undefined;
+    const steps = typeof r.typeId === "number" ? STEP_RECORDS[r.typeId] : undefined;
+    const known = running && (r.activityType === undefined || r.activityType === "running") ? running : steps;
+    if (known) {
       row.record = known.label;
       row.unit = known.unit;
     }

@@ -52,6 +52,7 @@ function shell(nonce: string, body: string, script = "", title = "Connect your G
   const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/icon.png">
 <title>${title}</title><style nonce="${nonce}">${STYLE}</style></head>
 <body><main><h1>${title}</h1>${body}</main>${script}</body></html>`;
   return new Response(html, {
@@ -64,6 +65,7 @@ function shell(nonce: string, body: string, script = "", title = "Connect your G
         "default-src 'none'",
         `script-src 'nonce-${nonce}' https://challenges.cloudflare.com`,
         `style-src 'nonce-${nonce}'`,
+        "img-src 'self'",
         "frame-src https://challenges.cloudflare.com",
         "connect-src https://challenges.cloudflare.com",
         "base-uri 'none'",
