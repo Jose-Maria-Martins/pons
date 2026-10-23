@@ -7,7 +7,9 @@ A remote MCP server on Cloudflare Workers (TypeScript) that lets Claude read a u
 - `src/index.ts`: Worker entry. `OAuthProvider` (from `@cloudflare/workers-oauth-provider`) serves `/authorize`, `/token`, `/register`; `/mcp` goes to the MCP handler
 - `src/login/authorize.ts`: `/authorize` flow (Turnstile, rate limits, Garmin login, `completeAuthorization`)
 - `src/login/page.ts`: sign-in page HTML and security headers
-- `src/login/garmin.ts`: Garmin mobile SSO login, DI token exchange, profile
+- `src/login/garmin.ts`: Garmin mobile SSO login, 2FA code, DI token exchange, profile, DI token refresh
+- `src/login/mfa.ts`: encrypted 2FA state in KV (AES-GCM, HKDF from handle + `HASH_KEY`) and its `__Host-` cookie
+- `src/crypto.ts`: `hmacHex`
 - `src/mcp/server.ts`: MCP server (`McpServer` from `@modelcontextprotocol/server`), instructions, tools
 - `src/garmin/api.ts`: Garmin data calls (`connectapi.garmin.com`, Bearer token)
 - `src/garmin/shape.ts`: `first`, `pick`, `slim`, date helpers, row shaping
