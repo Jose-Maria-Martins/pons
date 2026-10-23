@@ -29,7 +29,9 @@
   "analytics_engine_datasets": [{ "binding": "PONS_EVENTS", "dataset": "pons_events" }],
   "vars": {
     // Public Turnstile site key for the "Pons" widget. Local dev overrides it with the test key in .dev.vars.
-    "TURNSTILE_SITE_KEY": "0x4AAAAAAFhBVqnm5x2-CpZb"
+    "TURNSTILE_SITE_KEY": "0x4AAAAAAFhBVqnm5x2-CpZb",
+    // Public URL of the source code, for the /privacy page (for example https://github.com/<owner>/<repo>). Empty: no link.
+    "SOURCE_URL": ""
   },
   "observability": { "enabled": true }
 }

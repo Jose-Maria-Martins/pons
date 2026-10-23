@@ -16,6 +16,7 @@ declare global {
       TURNSTILE_SITE_KEY: string;
       TURNSTILE_SECRET: string;
       HASH_KEY: string;
+      SOURCE_URL: string;
     }
   }
 }
