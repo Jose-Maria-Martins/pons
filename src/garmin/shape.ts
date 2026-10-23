@@ -158,3 +158,206 @@ export function sleepRows(stats: unknown): Json[] {
     return row;
   });
 }
+
+/** A date moved by whole days. */
+export function addDays(date: string, days: number): string {
+  return toIso(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS);
+}
+
+/** One workout as a compact row. */
+export function activityRow(a: unknown): Json {
+  const row = pick(a, {
+    id: ["activityId"],
+    name: ["activityName"],
+    start: ["startTimeLocal"],
+    avg_hr: ["averageHR"],
+    max_hr: ["maxHR"],
+    calories: ["calories"],
+    elevation_gain_m: ["elevationGain"],
+    aerobic_te: ["aerobicTrainingEffect"],
+    anaerobic_te: ["anaerobicTrainingEffect"],
+    training_load: ["activityTrainingLoad"],
+    avg_power: ["avgPower"],
+    avg_cadence: ["averageRunningCadenceInStepsPerMinute", "averageBikingCadenceInRevPerMinute"],
+    vo2max: ["vO2MaxValue"],
+  });
+  if (!isRecord(a)) return row;
+  const typeKey = isRecord(a.activityType) ? a.activityType.typeKey : undefined;
+  const type = typeof typeKey === "string" && typeKey ? typeKey : "other";
+  row.type = type;
+  if (typeof a.distance === "number" && a.distance) row.distance_km = round2(a.distance / 1000);
+  if (typeof a.duration === "number" && a.duration) row.duration_min = Math.round((a.duration / 60) * 10) / 10;
+  const speed = a.averageSpeed;
+  if (typeof speed === "number" && speed) {
+    if (type.includes("run")) {
+      const seconds = Math.round(1000 / speed);
+      row.pace_min_per_km = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    } else {
+      row.speed_kmh = Math.round(speed * 3.6 * 10) / 10;
+    }
+  }
+  return row;
+}
+
+/** Nightly HRV rows from Garmin's HRV range response. */
+export function hrvRows(data: unknown): Json[] {
+  const summaries = isRecord(data) && Array.isArray(data.hrvSummaries) ? data.hrvSummaries : [];
+  return summaries.filter(isRecord).map((r) => ({ ...(slim(r) as Json), date: r.calendarDate ?? null }));
+}
+
+/** The rows of a daily summaries response: `{ data: [...] }` or a plain list. */
+export function dailyRows(data: unknown): Json[] {
+  const days = isRecord(data) ? data.data : data;
+  return (Array.isArray(days) ? days : []).map(dayRow).filter((r) => r.date);
+}
+
+// -- Day timeline --------------------------------------------------------------
+
+const BUCKET_MS = 15 * 60_000;
+
+interface Bucket {
+  hr: number[];
+  stress: number[];
+  battery?: number;
+  steps?: number;
+}
+
+/** Garmin writes some timestamps as "2030-03-14T06:00:00.0" with no zone: that is GMT. */
+const gmtMs = (s: unknown): number => (typeof s === "string" ? Date.parse(/(Z|[+-]\d\d:?\d\d)$/.test(s) ? s : `${s}Z`) : NaN);
+
+const pairs = (v: unknown): unknown[][] => (Array.isArray(v) ? v.filter((p): p is unknown[] => Array.isArray(p)) : []);
+
+/**
+ * One day of heart rate, stress, Body Battery and steps in 15-minute buckets (local time).
+ * `heart`, `stress` and `steps` are the raw responses of Garmin's daily heart rate, stress and
+ * summary chart endpoints. Buckets without any data are left out.
+ */
+export function timelineBuckets(heart: unknown, stress: unknown, steps: unknown): { tz_offset_min: number; buckets: Json[] } {
+  // Garmin gives the same instant in GMT and local time; the difference is the UTC offset.
+  let offsetMin = 0;
+  for (const src of [heart, stress]) {
+    const gmt = first(src, "startTimestampGMT");
+    const local = first(src, "startTimestampLocal");
+    const g = typeof gmt === "number" ? gmt : gmtMs(gmt);
+    const l = typeof local === "number" ? local : gmtMs(local);
+    if (Number.isFinite(g) && Number.isFinite(l)) {
+      offsetMin = Math.round((l - g) / 60_000);
+      break;
+    }
+  }
+
+  const buckets = new Map<number, Bucket>();
+  const at = (ts: number): Bucket => {
+    const key = Math.floor((ts + offsetMin * 60_000) / BUCKET_MS);
+    let b = buckets.get(key);
+    if (!b) buckets.set(key, (b = { hr: [], stress: [] }));
+    return b;
+  };
+
+  for (const [ts, bpm] of pairs(isRecord(heart) ? heart.heartRateValues : undefined)) {
+    if (typeof ts === "number" && typeof bpm === "number" && bpm > 0) at(ts).hr.push(bpm);
+  }
+  const stressData = isRecord(stress) ? stress : {};
+  for (const [ts, level] of pairs(stressData.stressValuesArray)) {
+    // Negative values are Garmin's "no data" markers.
+    if (typeof ts === "number" && typeof level === "number" && level >= 0) at(ts).stress.push(level);
+  }
+  for (const [ts, , level] of pairs(stressData.bodyBatteryValuesArray)) {
+    if (typeof ts === "number" && typeof level === "number") at(ts).battery = level;
+  }
+  for (const item of Array.isArray(steps) ? steps : []) {
+    const ts = gmtMs(first(item, "startGMT"));
+    const n = first(item, "steps");
+    if (Number.isFinite(ts) && typeof n === "number" && n > 0) {
+      const b = at(ts);
+      b.steps = (b.steps ?? 0) + n;
+    }
+  }
+
+  const mean = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
+  const rows = [...buckets.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([key, b]) => {
+      const row: Json = { time: new Date(key * BUCKET_MS).toISOString().slice(11, 16) };
+      if (b.hr.length) {
+        row.hr_avg = mean(b.hr);
+        row.hr_max = Math.max(...b.hr);
+      }
+      if (b.stress.length) row.stress_avg = mean(b.stress);
+      if (b.battery !== undefined) row.body_battery = b.battery;
+      if (b.steps !== undefined) row.steps = b.steps;
+      return row;
+    })
+    .filter((row) => Object.keys(row).length > 1);
+  return { tz_offset_min: offsetMin, buckets: rows };
+}
+
+// -- Personal records and planned workouts ---------------------------------------
+
+// Garmin's record types for running (from the garminconnect library's documentation).
+const RUNNING_RECORDS: Record<number, { label: string; unit: "s" | "m" }> = {
+  1: { label: "fastest 1 km", unit: "s" },
+  2: { label: "fastest 1 mile", unit: "s" },
+  3: { label: "fastest 5 km", unit: "s" },
+  4: { label: "fastest 10 km", unit: "s" },
+  5: { label: "fastest half marathon", unit: "s" },
+  6: { label: "fastest marathon", unit: "s" },
+  7: { label: "longest run", unit: "m" },
+};
+
+/** Personal records as compact rows. Times are in seconds, distances in metres. */
+export function recordRows(raw: unknown): Json[] {
+  return (Array.isArray(raw) ? raw : []).filter(isRecord).map((r) => {
+    const row = pick(r, {
+      type_id: ["typeId"],
+      sport: ["activityType"],
+      value: ["value"],
+      date: ["prStartTimeGmtFormatted", "actStartDateTimeInGMT", "startTimeLocal"],
+      activity_id: ["activityId"],
+      activity_name: ["activityName"],
+    });
+    const known = typeof r.typeId === "number" ? RUNNING_RECORDS[r.typeId] : undefined;
+    if (known && (r.activityType === undefined || r.activityType === "running")) {
+      row.record = known.label;
+      row.unit = known.unit;
+    }
+    return row;
+  });
+}
+
+/** Scheduled workouts as compact rows. Garmin returns a list, or an object holding one. */
+export function workoutRows(raw: unknown): Json[] {
+  const list = Array.isArray(raw) ? raw : isRecord(raw) ? (Object.values(raw).find(Array.isArray) ?? []) : [];
+  return list.filter(isRecord).map((w) => {
+    const row = pick(w, {
+      date: ["calendarDate", "date", "scheduledDate"],
+      name: ["workoutName", "title"],
+      sport: ["sportTypeKey", "sportType", "sport"],
+      workout_id: ["workoutId"],
+      plan: ["trainingPlanName"],
+      description: ["description"],
+    });
+    const secs = first(w, "estimatedDurationInSecs", "duration");
+    if (typeof secs === "number" && secs) row.duration_min = Math.round((secs / 60) * 10) / 10;
+    const meters = first(w, "estimatedDistanceInMeters", "distance");
+    if (typeof meters === "number" && meters) row.distance_km = round2(meters / 1000);
+    return row;
+  });
+}
+
+/** A range that looks ahead: from `start` (default today) for `defaultDays` days. */
+export function upcomingRange(
+  start: string | undefined,
+  end: string | undefined,
+  defaultDays: number,
+  maxDays: number,
+  now: Date = new Date(),
+): [string, string] {
+  let startD = parseDate(start, now);
+  let endD = end ? parseDate(end, now) : addDays(startD, defaultDays - 1);
+  if (startD > endD) [startD, endD] = [endD, startD];
+  if ((Date.parse(`${endD}T00:00:00Z`) - Date.parse(`${startD}T00:00:00Z`)) / DAY_MS + 1 > maxDays) {
+    throw new UserInputError(`Range too long: at most ${maxDays} days per request.`);
+  }
+  return [startD, endD];
+}
