@@ -174,6 +174,18 @@ describe("submitting the 2FA code", () => {
     expect(calls.filter((c) => c.includes("garmin.com"))).toEqual([]);
   });
 
+  it("shows the tries left in Portuguese when the language cookie says so", async () => {
+    const { mfaCookie, mfaHandle, who } = await reachCodePage();
+    mockFetch(...wrongCode());
+
+    const res = await submitCode(`${mfaCookie}; __Host-pons_lang=pt`, "000001", who.ip, "ok", await mfaFingerprint(mfaHandle));
+
+    const html = await res.text();
+    expect(html).toContain('<html lang="pt-PT">');
+    expect(html).toContain("Restam-lhe 2 tentativas.");
+    expect(html).not.toContain("tries left");
+  });
+
   it("saves the try before asking Garmin, so a parallel submission already sees it", async () => {
     const { mfaCookie, mfaHandle, who } = await reachCodePage();
     let seenByGarmin: number | undefined;
