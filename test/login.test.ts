@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { garminLogin, garminVerifyMfa } from "../src/login/garmin.js";
+import { garminLogin, garminVerifyMfa, tokenExpiry } from "../src/login/garmin.js";
 import { json, mockFetch, on } from "./helpers.js";
 
 const SSO = "https://sso.garmin.com/mobile/api/login";
 const DI = "https://diauth.garmin.com/di-oauth2-service/oauth/token";
 const PROFILE = "https://connectapi.garmin.com/userprofile-service/socialProfile";
+const SETTINGS = "https://connectapi.garmin.com/userprofile-service/userprofile/settings";
 
 afterEach(() => vi.restoreAllMocks());
 
@@ -14,6 +15,7 @@ describe("garminLogin", () => {
       on(SSO, () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
       on(DI, () => json({ access_token: "fake-access", refresh_token: "fake-refresh", expires_in: 7200 })),
       on(PROFILE, () => json({ displayName: "fake-display-name", garminGUID: "fake-guid" })),
+      on(SETTINGS, () => json({ timeZone: "Australia/Sydney" })),
     );
 
     const result = await garminLogin("someone@example.com", "fake-password");
@@ -22,13 +24,31 @@ describe("garminLogin", () => {
       ok: true,
       displayName: "fake-display-name",
       garminId: "fake-guid",
+      timeZone: "Australia/Sydney",
       auth: { access: "fake-access", refresh: "fake-refresh", clientId: "GARMIN_CONNECT_MOBILE_ANDROID_DI_2025Q2" },
     });
     expect(calls).toEqual([
       "https://sso.garmin.com/mobile/api/login",
       "https://diauth.garmin.com/di-oauth2-service/oauth/token",
       "https://connectapi.garmin.com/userprofile-service/socialProfile",
+      "https://connectapi.garmin.com/userprofile-service/userprofile/settings",
     ]);
+  });
+
+  it("still logs in, with the UTC time zone, when the settings call fails or has no zone", async () => {
+    const handlers = [
+      on(SSO, () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
+      on(DI, () => json({ access_token: "fake-access", expires_in: 7200 })),
+      on(PROFILE, () => json({ displayName: "fake-display-name", garminGUID: "fake-guid" })),
+    ];
+    for (const settings of [() => json({}, 500), () => json({ somethingElse: 1 }), () => json({ timeZone: 7 })]) {
+      mockFetch(on(SETTINGS, settings), ...handlers);
+      expect(await garminLogin("someone@example.com", "fake-password")).toMatchObject({ ok: true, timeZone: "UTC" });
+      vi.restoreAllMocks();
+    }
+    // No handler for the settings call at all: the mock throws, like a network error.
+    mockFetch(...handlers);
+    expect(await garminLogin("someone@example.com", "fake-password")).toMatchObject({ ok: true, timeZone: "UTC" });
   });
 
   it("tries the next client id when Garmin refuses the first", async () => {
@@ -145,5 +165,38 @@ describe("2FA", () => {
     vi.restoreAllMocks();
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network"));
     expect(await garminVerifyMfa(pending, "123456")).toEqual({ ok: false, reason: "unavailable" });
+  });
+});
+
+describe("tokenExpiry", () => {
+  const NOW = 1_900_000_000;
+  const jwt = (claims: object) => `${btoa("{}")}.${btoa(JSON.stringify(claims)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_")}.sig`;
+
+  it("takes the JWT exp over expires_in", () => {
+    expect(tokenExpiry(jwt({ exp: NOW + 86_400 }), 3600, NOW)).toBe(NOW + 86_400);
+    expect(tokenExpiry(jwt({ exp: NOW + 86_400.7 }), undefined, NOW)).toBe(NOW + 86_400);
+  });
+
+  it("uses expires_in, as a number or a numeric string, when the token has no usable exp", () => {
+    expect(tokenExpiry("opaque-token", 7200, NOW)).toBe(NOW + 7200);
+    expect(tokenExpiry("opaque-token", "7200", NOW)).toBe(NOW + 7200);
+    expect(tokenExpiry(jwt({ client_id: "X" }), "1800", NOW)).toBe(NOW + 1800);
+    expect(tokenExpiry(jwt({ exp: "soon" }), 600, NOW)).toBe(NOW + 600);
+  });
+
+  it("falls back to an hour for anything else", () => {
+    for (const expiresIn of [undefined, null, "", "soon", Number.NaN, {}]) {
+      expect(tokenExpiry("a.b.c", expiresIn, NOW)).toBe(NOW + 3600);
+    }
+  });
+
+  it("is used by the login, so the stored expiry follows the token", async () => {
+    const exp = Math.floor(Date.now() / 1000) + 90_000;
+    mockFetch(
+      on(SSO, () => json({ responseStatus: { type: "SUCCESSFUL" }, serviceTicketId: "ST-fake-1" })),
+      on(DI, () => json({ access_token: jwt({ exp }), expires_in: 60 })),
+      on(PROFILE, () => json({ displayName: "fake-display-name", garminGUID: "fake-guid" })),
+    );
+    expect(await garminLogin("someone@example.com", "fake-password")).toMatchObject({ ok: true, auth: { expiresAt: exp } });
   });
 });

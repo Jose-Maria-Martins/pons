@@ -66,10 +66,26 @@ const DAY_MS = 86_400_000;
 
 const toIso = (ms: number) => new Date(ms).toISOString().slice(0, 10);
 
-/** Accept YYYY-MM-DD, "today" or "yesterday". Returns YYYY-MM-DD. "Today" is the UTC date. */
-export function parseDate(value: string | undefined, now: Date = new Date()): string {
+/** The zone if the runtime knows it, otherwise "UTC". */
+export function resolveTimeZone(timeZone: string | undefined): string {
+  if (!timeZone) return "UTC";
+  try {
+    new Intl.DateTimeFormat("en-CA", { timeZone });
+    return timeZone;
+  } catch {
+    return "UTC";
+  }
+}
+
+/** The calendar date (YYYY-MM-DD) it is in `timeZone` at `now`. */
+export function localDate(now: Date = new Date(), timeZone?: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: resolveTimeZone(timeZone), year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+}
+
+/** Accept YYYY-MM-DD, "today" or "yesterday". Returns YYYY-MM-DD. "Today" is the date in `timeZone` (default UTC). */
+export function parseDate(value: string | undefined, now: Date = new Date(), timeZone = "UTC"): string {
   const v = (value ?? "today").trim().toLowerCase();
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const today = Date.parse(`${localDate(now, timeZone)}T00:00:00Z`);
   if (v === "today") return toIso(today);
   if (v === "yesterday") return toIso(today - DAY_MS);
   const ms = Date.parse(`${v}T00:00:00Z`);
@@ -85,9 +101,10 @@ export function dateRange(
   defaultDays: number,
   maxDays: number,
   now: Date = new Date(),
+  timeZone = "UTC",
 ): [string, string] {
-  let endD = parseDate(end, now);
-  let startD = start ? parseDate(start, now) : toIso(Date.parse(`${endD}T00:00:00Z`) - (defaultDays - 1) * DAY_MS);
+  let endD = parseDate(end, now, timeZone);
+  let startD = start ? parseDate(start, now, timeZone) : toIso(Date.parse(`${endD}T00:00:00Z`) - (defaultDays - 1) * DAY_MS);
   if (startD > endD) [startD, endD] = [endD, startD];
   const days = (Date.parse(`${endD}T00:00:00Z`) - Date.parse(`${startD}T00:00:00Z`)) / DAY_MS + 1;
   if (days > maxDays) throw new UserInputError(`Range too long: at most ${maxDays} days per request.`);
@@ -352,9 +369,10 @@ export function upcomingRange(
   defaultDays: number,
   maxDays: number,
   now: Date = new Date(),
+  timeZone = "UTC",
 ): [string, string] {
-  let startD = parseDate(start, now);
-  let endD = end ? parseDate(end, now) : addDays(startD, defaultDays - 1);
+  let startD = parseDate(start, now, timeZone);
+  let endD = end ? parseDate(end, now, timeZone) : addDays(startD, defaultDays - 1);
   if (startD > endD) [startD, endD] = [endD, startD];
   if ((Date.parse(`${endD}T00:00:00Z`) - Date.parse(`${startD}T00:00:00Z`)) / DAY_MS + 1 > maxDays) {
     throw new UserInputError(`Range too long: at most ${maxDays} days per request.`);
