@@ -97,6 +97,15 @@ export function tokenExpiry(accessToken: string, expiresIn: unknown, now: number
   return now + 3600;
 }
 
+/**
+ * Log the shape of a DI token answer: its field names and its numeric fields (lifetimes such as
+ * `expires_in`), never the token strings. Tells us how long Garmin's refresh token lasts.
+ */
+export function logTokenShape(event: "login" | "refresh", body: Json, rotated?: boolean): void {
+  const numbers = Object.fromEntries(Object.entries(body).filter(([, v]) => typeof v === "number"));
+  console.log(JSON.stringify({ pons_garmin_token: event, fields: Object.keys(body).sort(), numbers, ...(rotated === undefined ? {} : { rotated }) }));
+}
+
 /** POST to Garmin's DI token endpoint on behalf of an app id. */
 function postDi(clientId: string, body: Record<string, string>): Promise<Response> {
   return fetch(DI_TOKEN, {
@@ -176,6 +185,7 @@ async function exchangeTicket(ticket: string): Promise<GarminAuth | "rate_limite
     if (!res.ok) continue;
     const body = await readJson(res);
     if (typeof body.access_token !== "string") continue;
+    logTokenShape("login", body);
     return {
       access: body.access_token,
       refresh: typeof body.refresh_token === "string" ? body.refresh_token : "",
@@ -250,6 +260,7 @@ export async function refreshGarminAuth(auth: GarminAuth): Promise<RefreshResult
   if (!res.ok) return { ok: false, reason: "unavailable" };
   const body = await readJson(res);
   if (typeof body.access_token !== "string") return { ok: false, reason: "unavailable" };
+  logTokenShape("refresh", body, typeof body.refresh_token === "string" && body.refresh_token !== "" && body.refresh_token !== auth.refresh);
   return {
     ok: true,
     auth: {
