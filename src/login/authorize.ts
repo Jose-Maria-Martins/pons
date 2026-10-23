@@ -7,6 +7,7 @@ import type { AuthRequest } from "@cloudflare/workers-oauth-provider";
 import { platformOf, track } from "../analytics.js";
 import { hmacHex } from "../crypto.js";
 import type { Props } from "../garmin/api.js";
+import { readBounded } from "./body.js";
 import { garminLogin, garminVerifyMfa, type LoginFailure, type LoginResult } from "./garmin.js";
 import {
   clearMfaCookie,
@@ -14,6 +15,7 @@ import {
   loadMfaState,
   MFA_MAX_ATTEMPTS,
   mfaCookie,
+  mfaFingerprint,
   newMfaExpiry,
   newMfaHandle,
   readMfaCookie,
@@ -32,6 +34,8 @@ const MESSAGES: Record<Exclude<LoginFailure, "bad_code">, string> = {
 const EXPIRED = "This sign-in page expired. Go back to Claude and try connecting again.";
 const NO_PERSON = "We couldn't confirm you're a person. Please try again.";
 const TOO_MANY = "Too many tries. Wait a few minutes and try again.";
+const REPLACED = "This sign-in was replaced by a newer one in another tab or window. Use that one, or go back to Claude and connect again.";
+const OUT_OF_TRIES = "That code didn't work three times. Go back to Claude and try connecting again.";
 
 /** Log and count the outcome of a sign-in step. Outcome names only: nothing about the person. */
 function logLogin(env: Env, request: Request, outcome: string) {
@@ -127,12 +131,27 @@ async function handleMfaCode(request: Request, env: Env, nonce: string, field: (
   const handle = readMfaCookie(request);
   const state = handle ? await loadMfaState(env, handle) : null;
   if (!handle || !state) return mfaGone(nonce, EXPIRED);
+  if (state.attempts >= MFA_MAX_ATTEMPTS) {
+    await deleteMfaState(env, handle);
+    return mfaGone(nonce, OUT_OF_TRIES);
+  }
 
-  const form = (error: string) => mfaPage({ nonce, action: new URL(request.url).pathname, siteKey: env.TURNSTILE_SITE_KEY, error });
+  // Another tab may have started a newer sign-in and replaced the cookie: this page belongs to an older one.
+  const fingerprint = await mfaFingerprint(handle);
+  if (field("tab") !== fingerprint) return messagePage(nonce, REPLACED);
+
+  const form = (error: string) =>
+    mfaPage({ nonce, action: new URL(request.url).pathname, siteKey: env.TURNSTILE_SITE_KEY, fingerprint, error });
   const code = field("code").replace(/\s+/g, "");
   if (!/^\d{4,10}$/.test(code)) return form("Enter the code Garmin sent you.");
   const stop = await gate(request, env, field("cf-turnstile-response"), "mfa:" + state.emailKey);
   if (stop) return form(stop);
+
+  // Reserve the try before the slow call to Garmin, so a parallel submission sees it. KV is not atomic, so two
+  // requests that load the state at the same moment can still both pass; the per-email LOGIN_LIMIT gate above
+  // ("mfa:" + emailKey) is the hard bound.
+  const attempts = state.attempts + 1;
+  await saveMfaState(env, handle, { ...state, attempts });
 
   const result = await garminVerifyMfa(state, code);
   if (result.ok) {
@@ -142,16 +161,16 @@ async function handleMfaCode(request: Request, env: Env, nonce: string, field: (
   }
   if (result.reason === "bad_code") {
     logLogin(env, request, "bad_code");
-    const attempts = state.attempts + 1;
     if (attempts >= MFA_MAX_ATTEMPTS) {
       await deleteMfaState(env, handle);
-      return mfaGone(nonce, "That code didn't work three times. Go back to Claude and try connecting again.");
+      return mfaGone(nonce, OUT_OF_TRIES);
     }
-    await saveMfaState(env, handle, { ...state, attempts });
     const left = MFA_MAX_ATTEMPTS - attempts;
     return form(`That code didn't work. You have ${left} ${left === 1 ? "try" : "tries"} left.`);
   }
   logLogin(env, request, result.reason);
+  // Garmin never judged the code, so give the try back.
+  await saveMfaState(env, handle, state);
   return form(MESSAGES[result.reason === "mfa_required" ? "unavailable" : result.reason]);
 }
 
@@ -160,10 +179,13 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
   if (request.method === "GET") return renderLogin(request, env, nonce);
   if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
 
+  // The header is a cheap first check; a body sent in chunks has none, so the read itself is also bounded.
   if (Number(request.headers.get("Content-Length") ?? 0) > MAX_BODY) return new Response("Too large", { status: 413 });
   let form: FormData;
   try {
-    form = await request.formData();
+    const bytes = await readBounded(request.body, MAX_BODY);
+    if (!bytes) return new Response("Too large", { status: 413 });
+    form = await new Response(bytes, { headers: { "Content-Type": request.headers.get("Content-Type") ?? "" } }).formData();
   } catch {
     return renderLogin(request, env, nonce, "Enter your email and password.");
   }
@@ -201,7 +223,8 @@ export async function handleAuthorize(request: Request, env: Env): Promise<Respo
       attempts: 0,
       expiresAt: newMfaExpiry(),
     });
-    const res = mfaPage({ nonce, action: new URL(request.url).pathname, siteKey: env.TURNSTILE_SITE_KEY });
+    const fingerprint = await mfaFingerprint(mfaHandle);
+    const res = mfaPage({ nonce, action: new URL(request.url).pathname, siteKey: env.TURNSTILE_SITE_KEY, fingerprint });
     // Clear the consent cookie, which is used up, and bind the 2FA step to this browser.
     for (const cookie of approved.headers.getSetCookie()) res.headers.append("Set-Cookie", cookie);
     res.headers.append("Set-Cookie", mfaCookie(mfaHandle));

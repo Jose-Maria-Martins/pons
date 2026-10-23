@@ -74,6 +74,15 @@ export async function runTool(body: () => Promise<unknown>, onStatus?: (status: 
 
 const LIMIT_MESSAGE = "Too many requests to Pons in the last minute. Wait a minute and try again.";
 
+/** The per-user limit is a guard, not a gate: if the binding fails, let the call through. */
+async function withinLimit(env: Env, userId: string): Promise<boolean> {
+  try {
+    return (await env.TOOL_LIMIT.limit({ key: userId })).success;
+  } catch {
+    return true;
+  }
+}
+
 /** One tool call: apply the per-user limit, run the body, and record the outcome (names and timings only). */
 async function call(name: string, body: () => Promise<unknown>): Promise<CallToolResult> {
   const context = requestContext.getStore();
@@ -82,7 +91,7 @@ async function call(name: string, body: () => Promise<unknown>): Promise<CallToo
   const started = Date.now();
   let status = "ok";
   let result: CallToolResult;
-  if (userId && !(await context.env.TOOL_LIMIT.limit({ key: userId })).success) {
+  if (userId && !(await withinLimit(context.env, userId))) {
     status = "rate_limited";
     result = errorResult(LIMIT_MESSAGE);
   } else {
@@ -103,15 +112,24 @@ async function disconnect(): Promise<unknown> {
     };
   }
   let removed = 0;
-  let cursor: string | undefined;
-  do {
-    const page = await env.OAUTH_PROVIDER.listUserGrants(userId, { limit: 100, cursor });
-    for (const grant of page.items) {
-      await env.OAUTH_PROVIDER.revokeGrant(grant.id, userId);
-      removed++;
-    }
-    cursor = page.cursor;
-  } while (cursor);
+  try {
+    let cursor: string | undefined;
+    do {
+      const page = await env.OAUTH_PROVIDER.listUserGrants(userId, { limit: 100, cursor });
+      for (const grant of page.items) {
+        await env.OAUTH_PROVIDER.revokeGrant(grant.id, userId);
+        removed++;
+      }
+      cursor = page.cursor;
+    } while (cursor);
+  } catch {
+    return {
+      disconnected: false,
+      connections_removed: removed,
+      message:
+        "Pons could not finish disconnecting: some or none of the connections were removed. Try again, or remove the Pons connector in Claude's settings.",
+    };
+  }
   return {
     disconnected: true,
     connections_removed: removed,

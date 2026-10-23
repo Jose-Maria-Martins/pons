@@ -83,7 +83,7 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
    ```bash
    npx wrangler kv namespace create OAUTH_KV
    ```
-3. **Create a Turnstile widget** in the Cloudflare dashboard (Turnstile, Add widget, add your Worker's hostname). Put the **site key** in `wrangler.jsonc` under `vars.TURNSTILE_SITE_KEY` (it is public).
+3. **Create a Turnstile widget** in the Cloudflare dashboard (Turnstile, Add widget, add your Worker's hostname). Put the **site key** in `wrangler.jsonc` under `vars.TURNSTILE_SITE_KEY` (it is public). Optionally set `vars.SOURCE_URL` to the public URL of your copy of the code; the `/privacy` page then links to it and to its issues.
 4. **Set the secrets:**
    ```bash
    npx wrangler secret put TURNSTILE_SECRET   # the widget's secret key
