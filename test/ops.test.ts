@@ -1,6 +1,7 @@
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { dataPoint, initializeInfo, platformOf } from "../src/analytics.js";
+import { hmacHex } from "../src/crypto.js";
 import { tokenExchangeCallback } from "../src/index.js";
 import { privacyPage } from "../src/login/page.js";
 import { connect, json, message, mockFetch, on, openLoginPage, post, refreshRequest, rpc, send } from "./helpers.js";
@@ -50,6 +51,20 @@ describe("disconnect", () => {
     expect(body.message).toContain("Try again");
     expect(body.message).toContain("remove the Pons connector in Claude");
     expect(JSON.stringify(body)).not.toContain("KV is down");
+  });
+});
+
+describe("sign-in lifetime", () => {
+  it("lasts 90 days from sign-in", async () => {
+    await connect(3600, "ops-lifetime");
+    const userId = await hmacHex(env.HASH_KEY, "garmin:ops-lifetime");
+
+    const { items } = await env.OAUTH_PROVIDER.listUserGrants(userId);
+
+    expect(items).toHaveLength(1);
+    const left = (items[0]?.expiresAt ?? 0) - Math.floor(Date.now() / 1000);
+    expect(left).toBeLessThanOrEqual(90 * 24 * 3600);
+    expect(left).toBeGreaterThan(90 * 24 * 3600 - 60);
   });
 });
 
@@ -237,7 +252,7 @@ describe("/privacy", () => {
   });
 
   it("links the code and its issues when SOURCE_URL is set", async () => {
-    const html = await privacyPage("https://git.example.test/someone/pons/").text();
+    const html = await privacyPage("https://git.example.test/someone/pons/", "en").text();
     expect(html).toContain("It is open source");
     expect(html).toContain('<a href="https://git.example.test/someone/pons" rel="noopener">read the code</a>');
     expect(html).toContain('open an issue at <a href="https://git.example.test/someone/pons/issues"');

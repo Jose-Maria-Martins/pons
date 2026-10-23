@@ -1,6 +1,7 @@
 // The sign-in page shown at /authorize. Look and wording follow the local claudeGarmin login page.
 
 import type { ConsentDescription } from "@cloudflare/workers-oauth-provider";
+import { LANGUAGES, STRINGS, type Lang } from "./i18n.js";
 
 export const esc = (s: string): string =>
   s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] ?? c);
@@ -19,6 +20,7 @@ label{display:block;margin-top:1rem;font-weight:600}
 input{box-sizing:border-box;width:100%;margin-top:.25rem;padding:.7rem;font:inherit;color:var(--text);background:var(--bg);border:2px solid var(--border);border-radius:10px}
 button{margin-top:1.5rem;width:100%;padding:.8rem;font:inherit;font-weight:700;color:var(--accent-text);background:var(--accent);border:0;border-radius:10px;cursor:pointer}
 button:disabled{opacity:.6;cursor:default}
+.lang{margin:0 0 .5rem;text-align:right;color:var(--muted);font-size:.9rem}.lang a{color:var(--muted)}
 .cf-turnstile{margin-top:1rem}
 .spin{width:2.5rem;height:2.5rem;margin:1.5rem auto .5rem;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
 [hidden]{display:none}
@@ -39,6 +41,7 @@ addEventListener("pageshow", reset);
 
 export interface LoginPageOptions {
   nonce: string;
+  lang: Lang;
   /** Form action: the /authorize URL with the original OAuth query string. */
   action: string;
   /** Single-use consent handle from the OAuth library. */
@@ -48,13 +51,23 @@ export interface LoginPageOptions {
   error?: string;
 }
 
-function shell(nonce: string, body: string, script = "", title = "Connect your Garmin"): Response {
+interface ShellOptions {
+  nonce: string;
+  lang: Lang;
+  body: string;
+  script?: string;
+  title?: string;
+  /** The language switch, for pages a plain link can reach. */
+  nav?: string;
+}
+
+function shell({ nonce, lang, body, script = "", title = STRINGS[lang].title, nav = "" }: ShellOptions): Response {
   const html = `<!doctype html>
-<html lang="en"><head><meta charset="utf-8">
+<html lang="${STRINGS[lang].htmlLang}"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="/icon.png">
 <title>${title}</title><style nonce="${nonce}">${STYLE}</style></head>
-<body><main><h1>${title}</h1>${body}</main>${script}</body></html>`;
+<body><main>${nav}<h1>${title}</h1>${body}</main>${script}</body></html>`;
   return new Response(html, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
@@ -75,33 +88,45 @@ function shell(nonce: string, body: string, script = "", title = "Connect your G
   });
 }
 
+/** "English · Português": the current language as text, the other as a link to this same page in it. */
+function langNav(lang: Lang, current: string): string {
+  const items = LANGUAGES.map((l) => {
+    if (l.lang === lang) return `<span aria-current="true">${l.name}</span>`;
+    const url = new URL(current, "https://pons.invalid");
+    url.searchParams.set("lang", l.lang);
+    const htmlLang = STRINGS[l.lang].htmlLang;
+    return `<a href="${esc(url.pathname + url.search)}" lang="${htmlLang}" hreflang="${htmlLang}">${l.name}</a>`;
+  });
+  return `<nav class="lang" aria-label="Language / Idioma">${items.join(" · ")}</nav>`;
+}
+
 export function loginPage(o: LoginPageOptions): Response {
+  const s = STRINGS[o.lang];
   const c = o.client;
   const who = c.clientDomain ?? c.redirectHost;
   const error = o.error ? `<p class="error" role="alert">${esc(o.error)}</p>` : "";
-  const loopback = c.redirectIsLoopback
-    ? `<p class="error">This request sends your login to an app on this device. Only continue if you started it.</p>`
-    : "";
+  const loopback = c.redirectIsLoopback ? `<p class="error">${s.loopback}</p>` : "";
   const body = `${error}
-<p><b>${esc(c.clientName)}</b> (${esc(who)}) is asking to read your Garmin data. Pons only reads it; it never changes anything in your Garmin account.</p>${loopback}
-<p class="muted">Your password goes straight to Garmin. Pons never saves it; only a login token is stored, encrypted, so Claude can read your data.</p>
+<p>${s.asking(esc(c.clientName), esc(who))}</p>${loopback}
+<p class="muted">${s.passwordNote}</p>
 <form method="post" action="${esc(o.action)}">
 <input type="hidden" name="handle" value="${esc(o.handle)}">
-<label>Email<input name="email" type="email" autocomplete="username" required autofocus></label>
-<label>Password<input name="password" type="password" autocomplete="current-password" required></label>
+<label>${s.email}<input name="email" type="email" autocomplete="username" required autofocus></label>
+<label>${s.password}<input name="password" type="password" autocomplete="current-password" required></label>
 <div class="cf-turnstile" data-sitekey="${esc(o.siteKey)}"></div>
-<button type="submit">Sign in</button>
-<div id="working" hidden><div class="spin" role="status" aria-label="Signing in"></div>
-<p>Signing in to Garmin&hellip; this can take up to a minute.</p></div>
+<button type="submit">${s.signIn}</button>
+<div id="working" hidden><div class="spin" role="status" aria-label="${s.signingInLabel}"></div>
+<p>${s.signingIn}</p></div>
 </form>
-<p class="muted"><a href="/privacy" target="_blank" rel="noopener">What Pons collects and stores</a></p>`;
+<p class="muted"><a href="/privacy" target="_blank" rel="noopener">${s.privacyLink}</a></p>`;
   const scripts = `<script nonce="${o.nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script nonce="${o.nonce}">${SUBMIT_SCRIPT}</script>`;
-  return shell(o.nonce, body, scripts);
+  return shell({ nonce: o.nonce, lang: o.lang, body, script: scripts, nav: langNav(o.lang, o.action) });
 }
 
 export interface MfaPageOptions {
   nonce: string;
+  lang: Lang;
   action: string;
   siteKey: string;
   /** Tag of the sign-in this form belongs to (see mfaFingerprint). */
@@ -111,64 +136,54 @@ export interface MfaPageOptions {
 
 /** The second step for accounts with two-step verification: the code Garmin just sent. */
 export function mfaPage(o: MfaPageOptions): Response {
+  const s = STRINGS[o.lang];
   const error = o.error ? `<p class="error" role="alert">${esc(o.error)}</p>` : "";
   const body = `${error}
-<p>Garmin sent you a verification code (two-step verification). Enter it here to finish connecting.</p>
-<p class="muted">The code goes straight to Garmin. Pons never saves it.</p>
+<p>${s.mfaIntro}</p>
+<p class="muted">${s.mfaNote}</p>
 <form method="post" action="${esc(o.action)}">
 <input type="hidden" name="step" value="mfa">
 <input type="hidden" name="tab" value="${esc(o.fingerprint)}">
-<label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required autofocus></label>
+<label>${s.code}<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required autofocus></label>
 <div class="cf-turnstile" data-sitekey="${esc(o.siteKey)}"></div>
-<button type="submit">Verify</button>
-<div id="working" hidden><div class="spin" role="status" aria-label="Verifying"></div>
-<p>Checking the code with Garmin&hellip; this can take up to a minute.</p></div>
+<button type="submit">${s.verify}</button>
+<div id="working" hidden><div class="spin" role="status" aria-label="${s.verifyingLabel}"></div>
+<p>${s.verifying}</p></div>
 </form>`;
   const scripts = `<script nonce="${o.nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 <script nonce="${o.nonce}">${SUBMIT_SCRIPT}</script>`;
-  return shell(o.nonce, body, scripts);
+  return shell({ nonce: o.nonce, lang: o.lang, body, script: scripts });
 }
 
 /** A plain page with no form, for dead ends (expired link, invalid request). */
-export function messagePage(nonce: string, text: string, status = 400): Response {
-  const res = shell(nonce, `<p class="error" role="alert">${esc(text)}</p>`);
+export function messagePage(nonce: string, lang: Lang, text: string, status = 400): Response {
+  const res = shell({ nonce, lang, body: `<p class="error" role="alert">${esc(text)}</p>` });
   return new Response(res.body, { status, headers: res.headers });
 }
 
 /** The privacy page at /privacy. Keep it in step with PRIVACY.md and with what src/analytics.ts writes. */
-export function privacyPage(sourceUrl = ""): Response {
+export function privacyPage(sourceUrl: string, lang: Lang): Response {
+  const s = STRINGS[lang];
   const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
   const source = sourceUrl.trim().replace(/\/+$/, "");
-  const openSource = source ? ` It is open source: <a href="${esc(source)}" rel="noopener">read the code</a>.` : "";
+  const openSource = source ? s.openSource(`<a href="${esc(source)}" rel="noopener">${s.readTheCode}</a>`) : "";
   const contact = source
-    ? `open an issue at <a href="${esc(source)}/issues" rel="noopener">${esc(source)}/issues</a>.`
-    : "contact the person who shared Pons with you.";
-  const body = `<p>Pons lets Claude read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin or Anthropic.${openSource}</p>
-<h2>What Pons collects</h2>
-<p>Usage statistics only, and nothing about your health:</p>
-<ul>
-<li>Each time Claude uses a Pons tool: which tool, whether it worked (or the kind of error), how long it took, a user code, and the kind of device the request came from (desktop, web, mobile or other).</li>
-<li>Each time Claude connects: the name and version of the app.</li>
-<li>Each sign-in attempt: the outcome only, such as ok or wrong password.</li>
-</ul>
-<p>The user code is a scrambled code made from your Garmin account id and a secret key. It is not your Garmin id, name or email. Cloudflare keeps these statistics for about three months.</p>
-<p>To limit abuse, Pons also counts sign-in attempts per IP address and per scrambled email for a minute. Cloudflare keeps those counters briefly.</p>
-<h2>What Pons stores</h2>
-<ul>
-<li>A Garmin login token (not your password), encrypted, in the connection that lets Claude keep reading your data. It is kept for up to 30 days.</li>
-<li>Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.</li>
-<li>If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.</li>
-</ul>
-<h2>What Pons never stores</h2>
-<ul>
-<li>Your Garmin password. It goes straight to Garmin and is held in memory for that one request.</li>
-<li>Your health data. Pons reads it from Garmin when Claude asks and passes it on; it does not keep a copy. What Claude does with it is covered by Anthropic's own policies.</li>
-</ul>
-<h2>Delete everything</h2>
-<p>Ask Claude to disconnect Pons. That deletes the stored connection and the Garmin token. Then remove the Pons connector in Claude's settings.</p>
-<h2>Contact</h2>
-<p>Questions or problems: ${contact}</p>`;
-  const res = shell(nonce, body, "", "Pons privacy");
-  res.headers.set("Cache-Control", "public, max-age=3600");
-  return res;
+    ? s.contactIssue(`<a href="${esc(source)}/issues" rel="noopener">${esc(source)}/issues</a>`)
+    : s.contactSharer;
+  const list = (items: string[]) => `<ul>\n${items.map((i) => `<li>${i}</li>`).join("\n")}\n</ul>`;
+  const body = `<p>${s.privacyIntro}${openSource}</p>
+<h2>${s.collectsH}</h2>
+<p>${s.collectsLead}</p>
+${list(s.collectsItems)}
+<p>${s.userCodeNote}</p>
+<p>${s.abuseNote}</p>
+<h2>${s.storesH}</h2>
+${list(s.storesItems)}
+<h2>${s.neverH}</h2>
+${list(s.neverItems)}
+<h2>${s.deleteH}</h2>
+<p>${s.deleteText}</p>
+<h2>${s.contactH}</h2>
+<p>${s.contactLead}${contact}</p>`;
+  return shell({ nonce, lang, body, title: s.privacyTitle, nav: langNav(lang, "/privacy") });
 }
