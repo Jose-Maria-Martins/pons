@@ -28,6 +28,28 @@ describe("disconnect", () => {
     expect((await refreshRequest(second)).status).toBe(400);
     expect((await rpc(other.accessToken, "tools/list")).status).toBe(200);
   });
+
+  it("says how many were removed, and what to do, when it fails midway", async () => {
+    const user = await connect(3600, "ops-disconnect-partial");
+    await connect(3600, "ops-disconnect-partial");
+    const revoke = env.OAUTH_PROVIDER.revokeGrant.bind(env.OAUTH_PROVIDER);
+    let revoked = 0;
+    vi.spyOn(env.OAUTH_PROVIDER, "revokeGrant").mockImplementation(async (...args) => {
+      if (revoked++ === 1) throw new Error("KV is down");
+      return revoke(...args);
+    });
+
+    const result = (await message(await call(user.accessToken, "disconnect"))).result;
+
+    expect(result.isError).toBeFalsy();
+    const body = JSON.parse(result.content[0]?.text ?? "") as { disconnected: boolean; connections_removed: number; message: string };
+    expect(body.disconnected).toBe(false);
+    expect(body.connections_removed).toBe(1);
+    expect(body.message).toMatch(/some or none/);
+    expect(body.message).toContain("Try again");
+    expect(body.message).toContain("remove the Pons connector in Claude");
+    expect(JSON.stringify(body)).not.toContain("KV is down");
+  });
 });
 
 describe("user id in props", () => {
@@ -47,9 +69,13 @@ describe("user id in props", () => {
 
 describe("tool rate limit", () => {
   it("blocks the 61st call in a minute, only for that user", async () => {
-    // The limit counts in fixed one-minute windows: do not start right before one ends.
-    const untilNextWindow = 60_000 - (Date.now() % 60_000);
-    if (untilNextWindow < 10_000) await new Promise((r) => setTimeout(r, untilNextWindow + 200));
+    // A counter stands in for the binding, whose real one-minute window could end between two calls.
+    const counts = new Map<string, number>();
+    vi.spyOn(env.TOOL_LIMIT, "limit").mockImplementation(async ({ key }) => {
+      const n = (counts.get(key) ?? 0) + 1;
+      counts.set(key, n);
+      return { success: n <= 60 };
+    });
 
     const user = await connect(3600, "ops-limit-a");
     const bystander = await connect(3600, "ops-limit-b");
@@ -65,7 +91,21 @@ describe("tool rate limit", () => {
 
     const fine = (await message(await call(bystander.accessToken, "daily_overview", badDate))).result;
     expect(fine.content[0]?.text).toMatch(/Invalid input/);
-  }, 60_000);
+  });
+
+  it("lets the call through when the limiter itself fails, and still records it", async () => {
+    const { accessToken } = await connect(3600, "ops-limit-broken");
+    vi.spyOn(env.TOOL_LIMIT, "limit").mockRejectedValue(new Error("limiter unavailable"));
+    const write = vi.spyOn(env.PONS_EVENTS, "writeDataPoint");
+    mockFetch(on("https://connectapi.garmin.com/", () => json({ totalSteps: 7 })));
+
+    const result = (await message(await call(accessToken, "daily_overview", {}))).result;
+
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0]?.text).toContain("7");
+    const tool = write.mock.calls.map(([p]) => p!).find((p) => p.blobs?.[0] === "tool");
+    expect(tool?.blobs?.slice(0, 3)).toEqual(["tool", "daily_overview", "ok"]);
+  });
 });
 
 describe("analytics", () => {
@@ -108,6 +148,32 @@ describe("analytics", () => {
 
     const everything = JSON.stringify(points);
     for (const text of FORBIDDEN) expect(everything, text).not.toContain(text);
+  });
+
+  it("skips the initialize event when the body has no Content-Length", async () => {
+    const { accessToken } = await connect(3600, "ops-analytics-chunked");
+    const write = vi.spyOn(env.PONS_EVENTS, "writeDataPoint");
+    const payload = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: { protocolVersion: "2025-06-18", capabilities: {}, clientInfo: { name: "chunked-client", version: "1" } },
+    });
+    const res = await send("/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", Authorization: `Bearer ${accessToken}` },
+      body: new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(payload));
+          controller.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+
+    expect(res.status).toBe(200);
+    expect((await message(res)).result).toBeDefined();
+    expect(write.mock.calls.some(([p]) => p?.blobs?.[0] === "initialize")).toBe(false);
   });
 
   it("records sign-in outcomes and nothing else", async () => {
