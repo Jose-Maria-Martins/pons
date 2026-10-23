@@ -79,6 +79,15 @@ export async function deleteMfaState(env: Env, handle: string): Promise<void> {
   await env.OAUTH_KV.delete(await kvKey(env, handle));
 }
 
+/**
+ * A short, non-secret tag of the handle, put in the 2FA form. If a newer sign-in in another tab replaces the
+ * cookie, the older form's tag no longer matches it.
+ */
+export async function mfaFingerprint(handle: string): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", text.encode("pons-mfa-tab:" + handle));
+  return [...new Uint8Array(digest).slice(0, 8)].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 export const newMfaExpiry = () => Math.floor(Date.now() / 1000) + MFA_TTL_SECONDS;
 
 export const mfaCookie = (handle: string): string =>

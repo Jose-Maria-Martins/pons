@@ -102,6 +102,8 @@ export interface MfaPageOptions {
   nonce: string;
   action: string;
   siteKey: string;
+  /** Tag of the sign-in this form belongs to (see mfaFingerprint). */
+  fingerprint: string;
   error?: string;
 }
 
@@ -113,6 +115,7 @@ export function mfaPage(o: MfaPageOptions): Response {
 <p class="muted">The code goes straight to Garmin. Pons never saves it.</p>
 <form method="post" action="${esc(o.action)}">
 <input type="hidden" name="step" value="mfa">
+<input type="hidden" name="tab" value="${esc(o.fingerprint)}">
 <label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required autofocus></label>
 <div class="cf-turnstile" data-sitekey="${esc(o.siteKey)}"></div>
 <button type="submit">Verify</button>
