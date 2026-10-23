@@ -94,6 +94,32 @@ export function loginPage(o: LoginPageOptions): Response {
   return shell(o.nonce, body, scripts);
 }
 
+export interface MfaPageOptions {
+  nonce: string;
+  action: string;
+  siteKey: string;
+  error?: string;
+}
+
+/** The second step for accounts with two-step verification: the code Garmin just sent. */
+export function mfaPage(o: MfaPageOptions): Response {
+  const error = o.error ? `<p class="error" role="alert">${esc(o.error)}</p>` : "";
+  const body = `${error}
+<p>Garmin sent you a verification code (two-step verification). Enter it here to finish connecting.</p>
+<p class="muted">The code goes straight to Garmin. Pons never saves it.</p>
+<form method="post" action="${esc(o.action)}">
+<input type="hidden" name="step" value="mfa">
+<label>Verification code<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" required autofocus></label>
+<div class="cf-turnstile" data-sitekey="${esc(o.siteKey)}"></div>
+<button type="submit">Verify</button>
+<div id="working" hidden><div class="spin" role="status" aria-label="Verifying"></div>
+<p>Checking the code with Garmin&hellip; this can take up to a minute.</p></div>
+</form>`;
+  const scripts = `<script nonce="${o.nonce}" src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script nonce="${o.nonce}">${SUBMIT_SCRIPT}</script>`;
+  return shell(o.nonce, body, scripts);
+}
+
 /** A plain page with no form, for dead ends (expired link, invalid request). */
 export function messagePage(nonce: string, text: string, status = 400): Response {
   const res = shell(nonce, `<p class="error" role="alert">${esc(text)}</p>`);

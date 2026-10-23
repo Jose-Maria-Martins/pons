@@ -78,16 +78,6 @@ describe("POST /authorize", () => {
     expect(/name="handle" value="([^"]+)"/.exec(html)?.[1]).not.toBe(handle);
   });
 
-  it("explains that 2FA accounts are coming later", async () => {
-    const { path, handle, cookie } = await openLoginPage();
-    mockFetch(
-      on(SITEVERIFY, () => json({ success: true })),
-      on("https://sso.garmin.com/", () => json({ responseStatus: { type: "MFA_REQUIRED" } })),
-    );
-    const res = await post(path, cookie, { handle, email: "someone@example.com", password: "fake-password", "cf-turnstile-response": "ok-token" });
-    expect(await res.text()).toContain("coming in the next version");
-  });
-
   it("limits repeated tries from one address before contacting Garmin", async () => {
     const { calls } = mockFetch(
       on(SITEVERIFY, () => json({ success: true })),
