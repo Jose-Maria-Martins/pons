@@ -171,12 +171,12 @@ describe("activities tool limit", () => {
     expect(Object.fromEntries(url.searchParams)).toEqual({ start: "0", limit: "5", activityType: "running" });
   });
 
-  it("sends only endDate when the limit comes with an end date", async () => {
+  it("looks back up to a year when the limit comes with only an end date", async () => {
     const { accessToken } = await connect();
     const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([])));
     await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit: 2, end_date: "2030-03-01" } }));
     const url = new URL(String(spy.mock.calls[0]![0]));
-    expect(Object.fromEntries(url.searchParams)).toEqual({ endDate: "2030-03-01", start: "0", limit: "2" });
+    expect(Object.fromEntries(url.searchParams)).toEqual({ startDate: "2029-03-01", endDate: "2030-03-01", start: "0", limit: "2" });
   });
 
   it("keeps the date range when a start date comes with the limit", async () => {

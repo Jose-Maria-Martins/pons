@@ -280,19 +280,17 @@ export function createServer(origin?: string): McpServer {
           .min(1)
           .max(100)
           .optional()
-          .describe("Only the N most recent activities, e.g. 5 for 'my last 5 runs'. Without start_date, no date range applies."),
+          .describe("Only the N most recent activities, e.g. 5 for 'my last 5 runs'. Without dates, no date range applies."),
       }),
       annotations: READ_ONLY,
     },
     ({ start_date, end_date, activity_type, limit }) =>
       call("activities", async () => {
         const type = activity_type?.trim().toLowerCase() || undefined;
-        if (limit !== undefined && !start_date) {
-          // "The last N": no default 30 days, Garmin returns the most recent ones.
-          const end = end_date ? parseDate(end_date, undefined, userTimeZone()) : undefined;
-          return currentApi().activities(undefined, end, type, limit);
-        }
-        const [start, end] = dateRange(start_date, end_date, 30, 366, undefined, userTimeZone());
+        // "The last N": no default 30 days, Garmin returns the most recent ones.
+        if (limit !== undefined && !start_date && !end_date) return currentApi().activities(undefined, undefined, type, limit);
+        // A limit with only an end date looks back up to a year from it.
+        const [start, end] = dateRange(start_date, end_date, limit !== undefined ? 366 : 30, 366, undefined, userTimeZone());
         return currentApi().activities(start, end, type, limit);
       }),
   );
