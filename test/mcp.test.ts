@@ -12,13 +12,28 @@ describe("/mcp", () => {
     expect(res.headers.get("WWW-Authenticate")).toContain("resource_metadata");
   });
 
-  it("lists exactly the three read-only tools", async () => {
+  it("lists every tool, each read-only and with a title", async () => {
     const { accessToken } = await connect();
     const res = await rpc(accessToken, "tools/list");
     expect(res.status).toBe(200);
     const tools = (await message(res)).result.tools;
-    expect(tools.map((t) => t.name).sort()).toEqual(["connection_status", "daily_overview", "sleep_history"]);
+    expect(tools.map((t) => t.name).sort()).toEqual([
+      "activities",
+      "activity_detail",
+      "body_composition",
+      "connection_status",
+      "daily_overview",
+      "daily_trends",
+      "day_timeline",
+      "hrv_history",
+      "personal_records",
+      "planned_workouts",
+      "sleep_history",
+      "sleep_night_detail",
+      "training_status",
+    ]);
     expect(tools.every((t) => t.annotations.readOnlyHint === true)).toBe(true);
+    expect(tools.every((t) => typeof t.title === "string" && t.title.length > 0)).toBe(true);
   });
 
   it("runs a tool with the Garmin token stored in the grant", async () => {
