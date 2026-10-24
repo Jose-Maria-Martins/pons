@@ -59,14 +59,18 @@ Works on the free plan too. ChatGPT has no ready-made link, so it takes a few fi
 
 1. Save [the Pons icon](https://pons.jose-maria-martins.workers.dev/icon.png) to your computer. ChatGPT can't change the icon later.
 2. Open [ChatGPT's Plugins page](https://chatgpt.com/plugins), click **Add** and choose **Add custom MCP server**.
-   <!-- screenshot: docs/chatgpt-add.png (the Add menu) -->
+
+   <img src="docs/chatgpt-add.png" width="560" alt="ChatGPT's Plugins page with the Add menu open, showing Add custom MCP server.">
+
 3. Fill in the form:
    - **Icon:** the file you saved
    - **Name:** Pons
    - **Description:** Reads my Garmin data
    - **Server URL:** the address above
    - **Authentication:** OAuth
-   <!-- screenshot: docs/chatgpt-form.png (the filled form) -->
+
+   <img src="docs/chatgpt-form.png" width="560" alt="The Add custom MCP server form filled in for Pons, with OAuth chosen.">
+
 4. Tick **I understand and want to continue**, choose **Create as a plugin**, then install it from your plugins and sign in to Garmin on the page that opens.
 5. In a chat, type **@** and pick Pons.
 
