@@ -96,7 +96,7 @@ const defaultHandler: ExportedHandler<Env> = {
     if ((pathname === "/icon.png" || pathname === "/favicon.ico") && request.method === "GET") {
       return new Response(icon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
     }
-    return new Response("Pons: a read-only Garmin connector for Claude.", { status: 404 });
+    return new Response("Pons: a read-only Garmin connector for AI apps.", { status: 404 });
   },
 };
 
