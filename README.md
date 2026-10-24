@@ -1,12 +1,88 @@
-# Pons
+<p align="center"><img src="assets/icon.png" width="88" alt=""></p>
 
-Talk to your Garmin data from Claude. Pons is a remote [MCP](https://modelcontextprotocol.io) server on Cloudflare Workers: you add it to Claude as a custom connector, sign in to Garmin once, and Claude can then read your sleep, heart rate, stress and Body Battery.
+<h1 align="center">Pons</h1>
 
-Pons is read-only. No tool writes to your Garmin account. The one tool that changes anything is `disconnect`, which deletes your own stored connection.
+<p align="center">
+  <b>Ask your AI about your Garmin data.</b><br>
+  Sleep, recovery, training and workouts, in plain language. Read-only, nothing to install.
+</p>
 
-> Status: milestone 2 in progress. Thirteen read-only tools and a `disconnect` tool; sign-in handles 2FA accounts, Garmin tokens are refreshed, tool calls are rate-limited and usage is counted without any health data. Not deployed anywhere by this repository.
+<p align="center">
+  <a href="https://github.com/Jose-Maria-Martins/pons/actions/workflows/ci.yml"><img src="https://github.com/Jose-Maria-Martins/pons/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue" alt="MIT licence"></a>
+</p>
 
-## What it does
+<!-- Hero picture goes here: docs/hero.gif, a staged chat with made-up data. -->
+
+## What you can ask
+
+- *"How did I sleep this week compared with last month?"*
+- *"Am I recovered enough for a hard run today?"*
+- *"How did my marathon go, lap by lap?"*
+- *"When did my Body Battery drop today, and why?"*
+- *"What's on my training plan this week?"*
+- *"Has my resting heart rate changed since I started training?"*
+
+Your AI picks the data it needs from Garmin Connect and answers in plain language, compared with your own history.
+
+## Why Pons
+
+- **Nothing to install.** Paste one address into your AI and sign in to Garmin. It then works on your computer and your phone.
+- **Read-only.** Pons can look at your Garmin data. It can't change anything in your account.
+- **Your password goes only to Garmin.** Pons keeps an encrypted login token, never your password. See [what Pons collects](PRIVACY.md).
+- **Built for questions, not endpoints.** 14 focused tools that return just what's needed, instead of one tool per Garmin call. Your AI picks the right data more often, and chats stay light.
+
+<!-- Suggested "why I built it" line, in your words: "I wanted to ask about my own training without exporting spreadsheets, so I built Pons. It's a personal project: free, open source and not affiliated with Garmin." -->
+
+## Get started
+
+Pons's address:
+
+```
+https://pons.jose-maria-martins.workers.dev/mcp
+```
+
+You need a Garmin Connect account and an AI app that can add a custom connector (the open standard behind this is [MCP](https://modelcontextprotocol.io)). Pons is tested with Claude. ChatGPT and Gemini use the same standard but haven't been tested with Pons yet.
+
+### Claude
+
+Every plan works; the Free plan allows one custom connector. Add it once on the web or desktop app and it also works in the phone app.
+
+1. Open [this link](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Pons&connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp) in your browser. It opens Claude's "Add custom connector" window with Pons filled in. (Or go to Connectors, choose **Add custom connector** and paste the address.)
+2. Leave the advanced settings as they are and click **Add**, then **Connect**.
+3. Sign in with your Garmin email and password on the Pons page. If Garmin sends you a code, enter it there.
+4. Back in Claude, ask a question.
+
+### ChatGPT
+
+Custom connectors depend on your plan: at the time of writing, Business, Enterprise and Edu workspaces. Check whether your ChatGPT shows **Plugins**.
+
+1. On chatgpt.com, open **Plugins**, click **+** and choose **Add custom MCP server**.
+2. Name it Pons, paste the address and choose **OAuth** for authentication.
+3. Accept the warning, choose **Create as a plugin**, then install it from your plugins.
+4. Sign in to Garmin on the page that opens. In a chat, type **@** and pick Pons.
+
+### Gemini
+
+Google allows custom apps for personal Google accounts, 18 or older, in the US, in English, with Keep Activity on.
+
+1. On a computer, open gemini.google.com, then **Settings**, **Connected Apps**, **Add a custom app**.
+2. Paste the address. Pons registers itself, so leave the advanced fields empty.
+3. Click **Next** and sign in to Garmin. Pons then also works in the Gemini phone app.
+
+### Other apps
+
+Any app that supports remote MCP servers with OAuth can use the same address. For example, in Claude Code:
+
+```bash
+claude mcp add --transport http pons https://pons.jose-maria-martins.workers.dev/mcp
+```
+
+### Disconnecting
+
+Ask your AI to "disconnect Pons". That deletes the stored Garmin login. Then remove the connector in your AI's settings.
+
+## Tools
 
 | Tool | What it answers |
 |---|---|
@@ -23,7 +99,15 @@ Pons is read-only. No tool writes to your Garmin account. The one tool that chan
 | `day_timeline` | One day in 15-minute steps (local time): heart rate, stress, Body Battery, steps. |
 | `personal_records` | Personal records (fastest 5 km, longest run, and so on). |
 | `planned_workouts` | Workouts on the Garmin calendar, including training plans (default next 14 days, max 90). |
-| `disconnect` | Deletes your Pons connections and the stored Garmin login. Claude only calls it when you ask. |
+| `disconnect` | Deletes your Pons connections and the stored Garmin login. Your AI only calls it when you ask. |
+
+What you get depends on your watch: a watch without running power, for example, has no power zones.
+
+---
+
+## For developers and recruiters
+
+<!-- Next round: architecture diagram, security highlights, built with, limits, and self-hosting moved to docs/. The sections below are unchanged for now. -->
 
 ## How it works
 
