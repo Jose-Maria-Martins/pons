@@ -58,9 +58,10 @@ Every plan works; the Free plan allows one custom connector. Add it once on the 
 Works on the free plan too. Add it on chatgpt.com in a browser.
 
 1. Open [ChatGPT's Plugins page](https://chatgpt.com/plugins), click **Add** and choose **Add custom MCP server**.
-2. Name it Pons, paste the address and choose **OAuth** for authentication.
-3. Accept the warning, choose **Create as a plugin**, then install it from your plugins.
-4. Sign in to Garmin on the page that opens. In a chat, type **@** and pick Pons.
+2. For the icon, save [the Pons icon](https://pons.jose-maria-martins.workers.dev/icon.png) and choose it under **Icon**. ChatGPT can't change the icon later.
+3. Name it Pons, add a description such as "Reads my Garmin data", paste the address under **Server URL** and choose **OAuth** for authentication.
+4. Tick **I understand and want to continue**, choose **Create as a plugin**, then install it from your plugins.
+5. Sign in to Garmin on the page that opens. In a chat, type **@** and pick Pons.
 
 ### Gemini
 
