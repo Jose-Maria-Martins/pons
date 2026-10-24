@@ -1,4 +1,4 @@
-# How Pons works, and running your own
+# How Pons works, and running your own Garmin MCP server
 
 For people who want to know how Pons works, work on it, or run their own copy. To just use Pons, see the [README](../README.md).
 
