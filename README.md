@@ -12,7 +12,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/licence-MIT-blue" alt="MIT licence"></a>
 </p>
 
-<!-- Hero picture goes here: docs/hero.gif, a staged chat with made-up data. -->
+<p align="center"><img src="docs/hero.gif" width="720" alt="Someone asks how they slept this week; Pons fetches their sleep history and the AI answers with a weekly chart and a short summary. Made-up data."></p>
 
 ## What you can ask
 
@@ -42,22 +42,22 @@ Pons's address:
 https://pons.jose-maria-martins.workers.dev/mcp
 ```
 
-You need a Garmin Connect account and an AI app that can add a custom connector (the open standard behind this is [MCP](https://modelcontextprotocol.io)). Pons is tested with Claude. ChatGPT and Gemini use the same standard but haven't been tested with Pons yet.
+You need a Garmin Connect account and an AI app that can add a custom connector (the open standard behind this is [MCP](https://modelcontextprotocol.io)). Pons is tested with Claude and ChatGPT. Gemini uses the same standard but hasn't been tested with Pons yet.
 
 ### Claude
 
 Every plan works; the Free plan allows one custom connector. Add it once on the web or desktop app and it also works in the phone app.
 
-1. Open [this link](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Pons&connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp) in your browser. It opens Claude's "Add custom connector" window with Pons filled in. (Or go to Connectors, choose **Add custom connector** and paste the address.)
+1. Open [this link](https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Pons&connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp) in your browser. It opens Claude's "Add custom connector" window with Pons filled in. (Or go to **Customize**, **Connectors**, choose **Add custom connector** and paste the address.)
 2. Leave the advanced settings as they are and click **Add**, then **Connect**.
 3. Sign in with your Garmin email and password on the Pons page. If Garmin sends you a code, enter it there.
 4. Back in Claude, ask a question.
 
 ### ChatGPT
 
-Custom connectors depend on your plan: at the time of writing, Business, Enterprise and Edu workspaces. Check whether your ChatGPT shows **Plugins**.
+Works on the free plan too. Add it on chatgpt.com in a browser.
 
-1. On chatgpt.com, open **Plugins**, click **+** and choose **Add custom MCP server**.
+1. Open [ChatGPT's Plugins page](https://chatgpt.com/plugins), click **Add** and choose **Add custom MCP server**.
 2. Name it Pons, paste the address and choose **OAuth** for authentication.
 3. Accept the warning, choose **Create as a plugin**, then install it from your plugins.
 4. Sign in to Garmin on the page that opens. In a chat, type **@** and pick Pons.
