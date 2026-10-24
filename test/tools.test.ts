@@ -198,12 +198,14 @@ describe("activities tool limit", () => {
 });
 
 describe("activity_detail", () => {
-  it("combines summary, laps, zones and weather, and survives a missing part", async () => {
+  it("combines summary, laps, zones, power zones and weather, and survives a missing part", async () => {
     const { calls } = mockFetch(
       (url) => (url.pathname === "/activity-service/activity/123" ? json({ activityName: "Morning run", summaryDTO: { distance: 5000.456, maxHR: 170, ownerId: 5 } }) : undefined),
       on(`${API}/activity-service/activity/123/splits`, () => json({ lapDTOs: [{ lapIndex: 1, distance: 1000, averageHR: 150 }] })),
       on(`${API}/activity-service/activity/123/hrTimeInZones`, () => json([{ zoneNumber: 1, secsInZone: 120 }])),
       on(`${API}/activity-service/activity/123/weather`, () => json({}, 404)),
+      on(`${API}/activity-service/activity/123/powerTimeInZones`, () => json([{ zoneNumber: 2, secsInZone: 300, zoneLowBoundary: 150, junk: null }])),
+      on(`${API}/activity-service/activity/123/exerciseSets`, () => json({ activityId: 123, exerciseSets: null })),
     );
 
     expect(await api().activityDetail("123")).toEqual({
@@ -212,20 +214,71 @@ describe("activity_detail", () => {
       laps: [{ lapIndex: 1, distance: 1000, averageHR: 150 }],
       hr_zones: [{ zoneNumber: 1, secsInZone: 120 }],
       weather: { unavailable: "Garmin answered 404." },
+      power_zones: [{ zoneNumber: 2, secsInZone: 300, zoneLowBoundary: 150 }],
     });
-    expect(calls).toHaveLength(4);
+    expect(calls).toHaveLength(6);
+  });
+
+  it("adds the working sets of a strength workout and leaves out power zones Garmin cannot give", async () => {
+    mockFetch(
+      on(`${API}/activity-service/activity/456/exerciseSets`, () =>
+        json({
+          activityId: 456,
+          exerciseSets: [
+            { setType: "ACTIVE", duration: 40.4, repetitionCount: 8, weight: 60000, exercises: [{ category: "BENCH_PRESS", name: "BARBELL_BENCH_PRESS" }] },
+            { setType: "REST", duration: 90, repetitionCount: null, weight: null, exercises: [] },
+          ],
+        }),
+      ),
+      on(`${API}/activity-service/activity/456/powerTimeInZones`, () => json({}, 404)),
+      on(`${API}/activity-service/activity/456`, () => json({ activityName: "Gym" })),
+    );
+
+    const out = await api().activityDetail("456");
+
+    expect(out.strength_sets).toEqual([{ exercise: "BARBELL_BENCH_PRESS", category: "BENCH_PRESS", reps: 8, weight_kg: 60, duration_s: 40 }]);
+    expect(out).not.toHaveProperty("power_zones");
   });
 });
 
 describe("training_status", () => {
-  it("makes six calls and slims each part", async () => {
-    const { calls } = mockFetch(
+  it("makes eleven calls and shapes each part", async () => {
+    const { calls, spy } = mockFetch(
       on(`${API}/metrics-service/metrics/trainingstatus/aggregated/2030-03-14`, () => json({ mostRecentTrainingStatus: { status: "PRODUCTIVE" }, empty: [] })),
       on(`${API}/metrics-service/metrics/trainingreadiness/2030-03-14`, () => json([{ score: 70 }])),
       on(`${API}/metrics-service/metrics/maxmet/daily/2030-03-14/2030-03-14`, () => json([{ generic: { vo2MaxPreciseValue: 51.234 } }])),
       on(`${API}/metrics-service/metrics/racepredictions/latest/fake-display-name`, () => json({ time5K: 1500, time10K: 3100 })),
       on(`${API}/metrics-service/metrics/endurancescore`, () => json({ overallScore: 6000 })),
       on(`${API}/fitnessage-service/fitnessage/2030-03-14`, () => json({ fitnessAge: 31.5 })),
+      on(`${API}/biometric-service/biometric/latestLactateThreshold`, () =>
+        json([
+          { calendarDate: "2030-03-10", speed: 0.4, heartRate: 160, heartRateCycling: null },
+          { calendarDate: "2030-03-01", speed: null, hearRate: 158, heartRateCycling: 150 },
+        ]),
+      ),
+      on(`${API}/biometric-service/biometric/powerToWeight/latest/2030-03-14`, () =>
+        json([{ functionalThresholdPower: 280, powerToWeight: 3.8456, calendarDate: "2030-03-12", isStale: false, weight: 72000 }]),
+      ),
+      on(`${API}/biometric-service/biometric/latestFunctionalThresholdPower/CYCLING`, () =>
+        json({ functionalThresholdPower: 250, calendarDate: "2030-02-20", isStale: true, biometricSourceType: "USER_EXPERIENCE", sport: "CYCLING" }),
+      ),
+      on(`${API}/biometric-service/heartRateZones`, () =>
+        json([
+          {
+            sport: "RUNNING",
+            trainingMethod: "PERCENT_MAX_HR",
+            maxHeartRateUsed: 190,
+            restingHeartRateUsed: 50,
+            lactateThresholdHeartRateUsed: null,
+            zone1Floor: 95,
+            zone2Floor: 114,
+            zone3Floor: 133,
+            zone4Floor: 152,
+            zone5Floor: 171,
+          },
+        ]),
+      ),
+      on(`${API}/metrics-service/metrics/hillscore`, () => json({ overallScore: 40, strengthScore: 55, enduranceScore: null })),
     );
     expect(await api().trainingStatus("2030-03-14")).toEqual({
       training_status: { mostRecentTrainingStatus: { status: "PRODUCTIVE" } },
@@ -234,8 +287,50 @@ describe("training_status", () => {
       race_predictions: { time5K: 1500, time10K: 3100 },
       endurance_score: { overallScore: 6000 },
       fitness_age: { fitnessAge: 31.5 },
+      lactate_threshold: { date: "2030-03-10", heart_rate: 160, heart_rate_cycling: 150, speed_m_s: 4, pace_per_km: "4:10" },
+      running_power: { ftp_watts: 280, watts_per_kg: 3.85, date: "2030-03-12", stale: false },
+      cycling_ftp: { watts: 250, date: "2030-02-20", stale: true, source: "USER_EXPERIENCE" },
+      heart_rate_zones: [
+        { sport: "RUNNING", method: "PERCENT_MAX_HR", max_hr: 190, resting_hr: 50, zone_floors: [95, 114, 133, 152, 171] },
+      ],
+      hill_score: { overallScore: 40, strengthScore: 55 },
     });
-    expect(calls).toHaveLength(6);
+    expect(calls).toHaveLength(11);
+    const urls = spy.mock.calls.map(([u]) => new URL(String(u)));
+    const power = urls.find((u) => u.pathname.includes("powerToWeight"))!;
+    expect(Object.fromEntries(power.searchParams)).toEqual({ sport: "Running" });
+    const hill = urls.find((u) => u.pathname.endsWith("/hillscore"))!;
+    expect(Object.fromEntries(hill.searchParams)).toEqual({ calendarDate: "2030-03-14" });
+  });
+
+  it("leaves out the new parts when Garmin has no data, and notes the ones it could not read", async () => {
+    mockFetch(
+      on(`${API}/biometric-service/biometric/latestLactateThreshold`, () => json([])),
+      on(`${API}/biometric-service/biometric/powerToWeight/`, () => new Response(null, { status: 204 })),
+      on(`${API}/biometric-service/biometric/latestFunctionalThresholdPower/`, () => json({}, 404)),
+      on(`${API}/biometric-service/heartRateZones`, () => json({}, 404)),
+      on(`${API}/metrics-service/metrics/hillscore`, () => json({})),
+      () => json({}),
+    );
+    const out = await api().trainingStatus("2030-03-14");
+    expect(out).not.toHaveProperty("lactate_threshold");
+    expect(out).not.toHaveProperty("running_power");
+    expect(out).not.toHaveProperty("hill_score");
+    expect(out.cycling_ftp).toEqual({ unavailable: "Garmin answered 404." });
+    expect(out.heart_rate_zones).toEqual({ unavailable: "Garmin answered 404." });
+  });
+
+  it("omits the hill score on a 404, and empty zones and thresholds", async () => {
+    mockFetch(
+      on(`${API}/metrics-service/metrics/hillscore`, () => json({}, 404)),
+      on(`${API}/biometric-service/heartRateZones`, () => json([])),
+      on(`${API}/biometric-service/biometric/latestLactateThreshold`, () => json({ unrelated: 1 })),
+      () => json({}),
+    );
+    const out = await api().trainingStatus("2030-03-14");
+    expect(out).not.toHaveProperty("hill_score");
+    expect(out).not.toHaveProperty("heart_rate_zones");
+    expect(out).not.toHaveProperty("lactate_threshold");
   });
 });
 

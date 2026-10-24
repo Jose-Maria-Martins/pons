@@ -1,5 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { addDays, chunks, dateRange, dayRow, first, localDate, parseDate, pick, resolveTimeZone, sleepRows, slim, upcomingRange, UserInputError } from "../src/garmin/shape.js";
+import {
+  addDays,
+  chunks,
+  dateRange,
+  dayRow,
+  first,
+  heartRateZones,
+  lactateThreshold,
+  localDate,
+  parseDate,
+  pick,
+  resolveTimeZone,
+  sleepRows,
+  slim,
+  strengthSets,
+  upcomingRange,
+  UserInputError,
+} from "../src/garmin/shape.js";
 
 const NOW = new Date("2030-03-15T10:00:00Z");
 
@@ -146,5 +163,68 @@ describe("upcomingRange", () => {
 
   it("adds days across month ends", () => {
     expect(addDays("2030-02-27", 3)).toBe("2030-03-02");
+  });
+});
+
+describe("lactateThreshold", () => {
+  it("combines near-duplicate entries: speed (in units of 10 m/s) from one, heart rates from whichever has them", () => {
+    expect(
+      lactateThreshold([
+        { calendarDate: "2030-03-10", speed: 0.4, heartRate: null },
+        { calendarDate: "2030-03-01", speed: 0.3, heartRate: 160, heartRateCycling: 150 },
+      ]),
+    ).toEqual({ date: "2030-03-10", heart_rate: 160, heart_rate_cycling: 150, speed_m_s: 4, pace_per_km: "4:10" });
+  });
+
+  it("reads Garmin's misspelt hearRate and a speed that needs rounding", () => {
+    expect(lactateThreshold([{ hearRate: 158 }, { calendarDate: "2030-03-10", speed: 0.397 }])).toEqual({
+      date: "2030-03-10",
+      heart_rate: 158,
+      speed_m_s: 3.97,
+      pace_per_km: "4:12",
+    });
+  });
+
+  it("returns {} when there is nothing", () => {
+    expect(lactateThreshold([])).toEqual({});
+    expect(lactateThreshold(null)).toEqual({});
+  });
+});
+
+describe("heartRateZones", () => {
+  it("makes one entry per sport and drops nulls", () => {
+    expect(
+      heartRateZones([
+        { sport: "RUNNING", trainingMethod: "HR_RESERVE", maxHeartRateUsed: 190, restingHeartRateUsed: 50, lactateThresholdHeartRateUsed: 170, zone1Floor: 120, zone2Floor: 135, zone3Floor: 150, zone4Floor: 160, zone5Floor: 175 },
+        { sport: "DEFAULT", maxHeartRateUsed: 188, zone1Floor: 94, zone2Floor: null },
+      ]),
+    ).toEqual([
+      { sport: "RUNNING", method: "HR_RESERVE", max_hr: 190, resting_hr: 50, lactate_threshold_hr: 170, zone_floors: [120, 135, 150, 160, 175] },
+      { sport: "DEFAULT", max_hr: 188 },
+    ]);
+    expect(heartRateZones({})).toEqual([]);
+  });
+});
+
+describe("strengthSets", () => {
+  it("keeps the working sets, converts grams to kg and falls back to the category when the name is null", () => {
+    expect(
+      strengthSets({
+        activityId: 1,
+        exerciseSets: [
+          { setType: "ACTIVE", duration: 45.6, repetitionCount: 10, weight: 22500, exercises: [{ category: "CURL", name: "DUMBBELL_CURL" }] },
+          { setType: "REST", duration: 60, repetitionCount: null, weight: null, exercises: [] },
+          { setType: "ACTIVE", duration: 30, repetitionCount: 15, weight: -1, exercises: [{ category: "PUSH_UP", name: null }] },
+        ],
+      }),
+    ).toEqual([
+      { exercise: "DUMBBELL_CURL", category: "CURL", reps: 10, weight_kg: 22.5, duration_s: 46 },
+      { exercise: "PUSH_UP", category: "PUSH_UP", reps: 15, duration_s: 30 },
+    ]);
+  });
+
+  it("returns [] when Garmin sends no sets", () => {
+    expect(strengthSets({ activityId: 1, exerciseSets: null })).toEqual([]);
+    expect(strengthSets(null)).toEqual([]);
   });
 });

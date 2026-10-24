@@ -10,15 +10,15 @@ Pons is read-only. No tool writes to your Garmin account. The one tool that chan
 
 | Tool | What it answers |
 |---|---|
-| `connection_status` | Is Garmin connected, and when did the watch last sync? |
+| `connection_status` | Is Garmin connected, which watch, and when did it last sync? |
 | `daily_overview` | One day: steps, heart rate, stress, Body Battery, last night's sleep and HRV, training readiness. |
 | `sleep_history` | Nightly sleep summaries for a date range (default 30 days, max 366). |
 | `daily_trends` | One row per day: steps, calories, resting HR, stress, Body Battery, intensity minutes, sleep time (default 30 days, max 366). |
 | `sleep_night_detail` | One night in detail: stages, score factors, overnight HRV, SpO2, respiration. |
 | `hrv_history` | Nightly HRV with the 7-day average, baseline range and status (default 30 days, max 180). |
 | `activities` | Workouts in a range with distance, duration, pace or speed, heart rate, training effect and load (default 30 days, max 366, at most 200 workouts), optionally by type, or just the N most recent with `limit`. |
-| `activity_detail` | One workout with laps, time in heart rate zones and weather. |
-| `training_status` | Training status and load, readiness, VO2 max, race predictions, endurance score, fitness age. |
+| `activity_detail` | One workout with laps, time in heart rate and power zones, weather, and the sets of a strength workout. |
+| `training_status` | Training status and load, readiness, VO2 max, race predictions, endurance and hill score, fitness age, lactate threshold, running power, cycling FTP, heart rate zones. |
 | `body_composition` | Weight and body composition (default 90 days, max 366). This is also the weight history tool: Garmin serves both from the same endpoint. |
 | `day_timeline` | One day in 15-minute steps (local time): heart rate, stress, Body Battery, steps. |
 | `personal_records` | Personal records (fastest 5 km, longest run, and so on). |

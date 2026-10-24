@@ -98,6 +98,7 @@ describe("connection_status", () => {
       on(`${API}/userprofile-service/socialProfile`, () => json({ fullName: "Test Person", displayName: "fake-display-name" })),
       on(`${API}/userprofile-service/userprofile/user-settings`, () => json({ userData: { measurementSystem: "metric" } })),
       on(`${API}/wellness-service/wellness/syncTimestamp`, () => json("2030-03-14T07:00:00.0")),
+      on(`${API}/device-service/deviceservice/mylastused`, () => json({})),
     );
     expect(await new GarminApi(props).connectionStatus()).toEqual({
       connected: true,
@@ -109,6 +110,28 @@ describe("connection_status", () => {
     });
     expect(await new GarminApi({ ...props, timeZone: "Australia/Sydney" }).connectionStatus()).toMatchObject({ time_zone: "Australia/Sydney", today: "2030-03-16" });
     expect(await new GarminApi({ ...props, timeZone: "Not/AZone" }).connectionStatus()).toMatchObject({ time_zone: "UTC", today: "2030-03-15" });
+  });
+
+  it("adds the watch and when it last uploaded (epoch milliseconds as ISO time), and leaves it out when unknown", async () => {
+    const serve = (device: () => Response) =>
+      mockFetch(
+        on(`${API}/userprofile-service/socialProfile`, () => json({ fullName: "Test Person" })),
+        on(`${API}/device-service/deviceservice/mylastused`, device),
+        () => json({}),
+      );
+
+    serve(() => json({ lastUsedDeviceName: "Fake Watch 9", lastUsedDeviceUploadTime: Date.UTC(2030, 2, 14, 7, 30, 15), imageUrl: "https://example.test/x.png", lastUsedDeviceId: 5 }));
+    expect((await new GarminApi(props).connectionStatus()).watch).toEqual({ name: "Fake Watch 9", last_upload: "2030-03-14T07:30:15.000Z" });
+
+    vi.restoreAllMocks();
+    serve(() => json({ lastUsedDeviceName: "Fake Watch 9" }));
+    expect((await new GarminApi(props).connectionStatus()).watch).toEqual({ name: "Fake Watch 9" });
+
+    for (const device of [() => json({}), () => json({}, 404), () => new Response(null, { status: 204 })]) {
+      vi.restoreAllMocks();
+      serve(device);
+      expect(await new GarminApi(props).connectionStatus()).not.toHaveProperty("watch");
+    }
   });
 });
 
