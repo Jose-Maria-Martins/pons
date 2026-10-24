@@ -255,7 +255,7 @@ describe("submitting the 2FA code", () => {
 
     const none = await submitCode("", "123456", who.ip);
     expect(none.status).toBe(400);
-    expect(await none.text()).toContain("Go back to your AI app");
+    expect(await none.text()).toContain("Go back and try connecting again");
 
     const unknown = await submitCode("__Host-pons_mfa=" + newMfaHandle(), "123456", who.ip);
     expect(unknown.status).toBe(400);
