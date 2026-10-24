@@ -23,7 +23,7 @@ describe("disconnect", () => {
     const body = JSON.parse(result.content[0]?.text ?? "") as { disconnected: boolean; connections_removed: number; message: string };
     expect(body.disconnected).toBe(true);
     expect(body.connections_removed).toBe(2);
-    expect(body.message).toContain("remove the Pons connector in Claude");
+    expect(body.message).toContain("AI app's connector settings");
 
     expect((await rpc(first.accessToken, "tools/list")).status).toBe(401);
     expect((await rpc(second.accessToken, "tools/list")).status).toBe(401);
@@ -49,7 +49,7 @@ describe("disconnect", () => {
     expect(body.connections_removed).toBe(1);
     expect(body.message).toMatch(/some or none/);
     expect(body.message).toContain("Try again");
-    expect(body.message).toContain("remove the Pons connector in Claude");
+    expect(body.message).toContain("AI app's connector settings");
     expect(JSON.stringify(body)).not.toContain("KV is down");
   });
 });
@@ -237,7 +237,7 @@ describe("/privacy", () => {
     const html = await res.text();
     expect(res.status).toBe(200);
     expect(html).toContain("Pons privacy");
-    expect(html).toContain("not affiliated with Garmin or Anthropic");
+    expect(html).toContain("not affiliated with Garmin, Anthropic, OpenAI or Google");
     expect(html).toContain("never stores");
     expect(html).not.toContain("<script");
     expect(res.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");

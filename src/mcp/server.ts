@@ -27,7 +27,7 @@ records, planned workouts).
   baseline rather than population norms. This is not medical advice: suggest a
   doctor for anything that looks like a health concern.
 - If the user isn't connected, or Garmin keeps rejecting their login after a
-  retry, ask them to disconnect and reconnect Pons in their Claude connector
+  retry, ask them to disconnect and reconnect Pons in their AI app's connector
   settings.
 `;
 
@@ -41,7 +41,7 @@ export function describeError(e: unknown): string {
   if (e instanceof GarminError) {
     switch (e.kind) {
       case "not_connected":
-        return "Garmin rejected the login. This is often brief: try again in a moment. If it keeps failing, ask the user to disconnect and reconnect Pons in their Claude connector settings.";
+        return "Garmin rejected the login. This is often brief: try again in a moment. If it keeps failing, ask the user to disconnect and reconnect Pons in their AI app's connector settings.";
       case "rate_limit":
         return "Garmin is limiting requests right now. Wait a few minutes and try again.";
       case "unreachable":
@@ -108,7 +108,7 @@ async function disconnect(): Promise<unknown> {
   if (!env || !userId) {
     return {
       disconnected: false,
-      message: "Pons cannot tell which connection this is yet. Try again in an hour, or remove the Pons connector in Claude's settings.",
+      message: "Pons cannot tell which connection this is yet. Try again in an hour, or remove Pons from the AI app's connector settings.",
     };
   }
   let removed = 0;
@@ -127,13 +127,13 @@ async function disconnect(): Promise<unknown> {
       disconnected: false,
       connections_removed: removed,
       message:
-        "Pons could not finish disconnecting: some or none of the connections were removed. Try again, or remove the Pons connector in Claude's settings.",
+        "Pons could not finish disconnecting: some or none of the connections were removed. Try again, or remove Pons from the AI app's connector settings.",
     };
   }
   return {
     disconnected: true,
     connections_removed: removed,
-    message: "Pons deleted the stored Garmin login and this connection. Tell the user to also remove the Pons connector in Claude's settings.",
+    message: "Pons deleted the stored Garmin login and this connection. Tell the user to also remove Pons from their AI app's connector settings.",
   };
 }
 

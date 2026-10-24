@@ -20,9 +20,9 @@ Risk: someone reads or keeps the Garmin password.
 Risk: someone obtains the Garmin token or a Pons access token.
 
 - Garmin's token is stored in the OAuth grant in Workers KV, encrypted by `@cloudflare/workers-oauth-provider` with a key that only the holder of the access token can unwrap.
-- Claude's access tokens last one hour; refresh tokens last 90 days.
+- The AI app's access tokens last one hour; refresh tokens last 90 days.
 - The Garmin token can read health data. It is limited to what Garmin allows that mobile client.
-- The `disconnect` tool revokes every grant of the user, which deletes the stored token. Claude can call it whenever the user asks.
+- The `disconnect` tool revokes every grant of the user, which deletes the stored token. The AI app can call it whenever the user asks.
 - Left over: a stolen access token works until it expires (one hour) or the grant is revoked.
 
 ## Abuse of the login page and the tools
@@ -52,4 +52,4 @@ Risk: Garmin changes or blocks the unofficial endpoints Pons uses.
 - Only `src/login/garmin.ts` and `src/garmin/api.ts` talk to Garmin, so a change stays in two files.
 - Tools are read-only toward Garmin, so a bug cannot change anything in a Garmin account.
 - Dependencies are pinned to exact versions and reviewed before upgrades.
-- Left over: when Garmin breaks sign-in or an endpoint, Pons stops working until it is updated. Tools return a plain error that Claude can relay.
+- Left over: when Garmin breaks sign-in or an endpoint, Pons stops working until it is updated. Tools return a plain error that the AI app can relay.
