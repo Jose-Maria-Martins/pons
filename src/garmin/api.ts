@@ -6,7 +6,9 @@ import {
   dailyRows,
   dayRow,
   first,
+  heartRateZones,
   hrvRows,
+  lactateThreshold,
   newestFirst,
   pick,
   localDate,
@@ -14,6 +16,7 @@ import {
   resolveTimeZone,
   sleepRows,
   slim,
+  strengthSets,
   timelineBuckets,
   workoutRows,
 } from "./shape.js";
@@ -70,6 +73,21 @@ const MAX_ACTIVITY_PAGES = 10;
 
 const isUnavailable = (v: unknown) => typeof v === "object" && v !== null && "unavailable" in v;
 
+const isEmpty = (v: unknown) =>
+  v === null || v === undefined || (Array.isArray(v) ? v.length === 0 : typeof v === "object" && Object.keys(v).length === 0);
+
+/** Shape an optional metric: Garmin's "unavailable" note passes through, no data becomes undefined (key left out). */
+const optional = (raw: unknown, shape: (raw: unknown) => unknown): unknown => {
+  if (isUnavailable(raw)) return raw;
+  const out = shape(raw);
+  return isEmpty(out) ? undefined : out;
+};
+
+/** The object itself, or the first one of a list. */
+const firstOf = (v: unknown) => (Array.isArray(v) ? v[0] : v);
+
+const withoutUndefined = (o: Json): Json => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined));
+
 export class GarminApi {
   constructor(private readonly props: Props) {}
 
@@ -112,12 +130,15 @@ export class GarminApi {
 
   async connectionStatus(): Promise<Json> {
     const profile = await this.get("/userprofile-service/socialProfile");
-    const [settings, sync] = await Promise.all([
+    const [settings, sync, device] = await Promise.all([
       this.tryGet("/userprofile-service/userprofile/user-settings"),
       this.tryGet("/wellness-service/wellness/syncTimestamp"),
+      this.tryGet("/device-service/deviceservice/mylastused"),
     ]);
     const userData = (settings as Json | null)?.userData;
     const timeZone = resolveTimeZone(this.props.timeZone);
+    const watchName = isUnavailable(device) ? undefined : first(device, "lastUsedDeviceName");
+    const uploaded = first(device, "lastUsedDeviceUploadTime");
     return {
       connected: true,
       time_zone: timeZone,
@@ -125,6 +146,15 @@ export class GarminApi {
       name: first(profile, "fullName") ?? "",
       units: first(userData, "measurementSystem") ?? settings,
       last_sync: sync,
+      ...(typeof watchName === "string" && watchName
+        ? {
+            watch: {
+              name: watchName,
+              // Epoch milliseconds.
+              ...(typeof uploaded === "number" && Number.isFinite(uploaded) ? { last_upload: new Date(uploaded).toISOString() } : {}),
+            },
+          }
+        : {}),
     };
   }
 
@@ -246,11 +276,13 @@ export class GarminApi {
 
   async activityDetail(id: string): Promise<Json> {
     const base = `/activity-service/activity/${id}`;
-    const [activity, splits, zones, weather] = await Promise.all([
+    const [activity, splits, zones, weather, powerZones, sets] = await Promise.all([
       this.tryGet(base),
       this.tryGet(`${base}/splits`),
       this.tryGet(`${base}/hrTimeInZones`),
       this.tryGet(`${base}/weather`),
+      this.tryGet(`${base}/powerTimeInZones`),
+      this.tryGet(`${base}/exerciseSets`),
     ]);
     const a = (activity ?? {}) as Json;
     const sp = (splits ?? {}) as Json;
@@ -262,18 +294,27 @@ export class GarminApi {
       laps: slim(Array.isArray(laps) && laps.length ? laps : sp, 40),
       hr_zones: slim(zones),
       weather: slim(weather),
+      ...withoutUndefined({
+        power_zones: isUnavailable(powerZones) ? undefined : optional(powerZones, slim),
+        strength_sets: isUnavailable(sets) ? undefined : optional(sets, strengthSets),
+      }),
     };
   }
 
   async trainingStatus(date: string): Promise<Json> {
     const name = encodeURIComponent(this.props.displayName);
-    const [status, readiness, maxMetrics, races, endurance, fitnessAge] = await Promise.all([
+    const [status, readiness, maxMetrics, races, endurance, fitnessAge, lactate, runPower, cyclingFtp, hrZones, hill] = await Promise.all([
       this.tryGet(`/metrics-service/metrics/trainingstatus/aggregated/${date}`),
       this.tryGet(`/metrics-service/metrics/trainingreadiness/${date}`),
       this.tryGet(`/metrics-service/metrics/maxmet/daily/${date}/${date}`),
       this.tryGet(`/metrics-service/metrics/racepredictions/latest/${name}`),
       this.tryGet("/metrics-service/metrics/endurancescore", { calendarDate: date }),
       this.tryGet(`/fitnessage-service/fitnessage/${date}`),
+      this.tryGet("/biometric-service/biometric/latestLactateThreshold"),
+      this.tryGet(`/biometric-service/biometric/powerToWeight/latest/${date}`, { sport: "Running" }),
+      this.tryGet("/biometric-service/biometric/latestFunctionalThresholdPower/CYCLING"),
+      this.tryGet("/biometric-service/heartRateZones"),
+      this.tryGet("/metrics-service/metrics/hillscore", { calendarDate: date }),
     ]);
     return {
       training_status: slim(status),
@@ -282,6 +323,19 @@ export class GarminApi {
       race_predictions: slim(races),
       endurance_score: slim(endurance),
       fitness_age: slim(fitnessAge),
+      // Left out when Garmin has no data; the "unavailable" note is kept, except for the hill score.
+      ...withoutUndefined({
+        lactate_threshold: optional(lactate, lactateThreshold),
+        running_power: optional(runPower, (r) =>
+          pick(firstOf(r), { ftp_watts: ["functionalThresholdPower"], watts_per_kg: ["powerToWeight"], date: ["calendarDate"], stale: ["isStale"] }),
+        ),
+        cycling_ftp: optional(cyclingFtp, (r) =>
+          pick(firstOf(r), { watts: ["functionalThresholdPower"], date: ["calendarDate"], stale: ["isStale"], source: ["biometricSourceType"] }),
+        ),
+        heart_rate_zones: optional(hrZones, heartRateZones),
+        // Garmin answers {} for most users.
+        hill_score: isUnavailable(hill) ? undefined : optional(hill, slim),
+      }),
     };
   }
 

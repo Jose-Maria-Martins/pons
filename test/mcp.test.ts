@@ -46,6 +46,7 @@ describe("/mcp", () => {
       on(`${API}/userprofile-service/socialProfile`, () => json({ fullName: "Test Person" })),
       on(`${API}/userprofile-service/userprofile/user-settings`, () => json({ userData: { measurementSystem: "metric" } })),
       on(`${API}/wellness-service/wellness/syncTimestamp`, () => json("2030-03-14T07:00:00.0")),
+      on(`${API}/device-service/deviceservice/mylastused`, () => json({})),
     );
 
     const res = await rpc(accessToken, "tools/call", { name: "connection_status", arguments: {} });

@@ -173,7 +173,9 @@ export function createServer(origin?: string): McpServer {
     "connection_status",
     {
       title: "Garmin connection status",
-      description: "Check the Garmin connection and when the watch last synced. Also gives the user's time zone and today's local date.",
+      description:
+        "Check the Garmin connection and when the watch last synced. Also gives the watch name and when it last uploaded, " +
+        "the user's time zone and today's local date.",
       inputSchema: z.object({}),
       annotations: READ_ONLY,
     },
@@ -300,8 +302,8 @@ export function createServer(origin?: string): McpServer {
     {
       title: "Activity detail",
       description:
-        "Full summary of one workout plus its laps/splits, time in heart rate zones and weather. " +
-        "Get the id from the activities tool.",
+        "Full summary of one workout plus its laps/splits, time in heart rate zones, power time in zones and weather. " +
+        "For strength workouts it also gives the sets (exercises, reps, weight). Get the id from the activities tool.",
       inputSchema: z.object({ activity_id: z.string().describe("The workout's id, from the activities tool.") }),
       annotations: READ_ONLY,
     },
@@ -318,8 +320,9 @@ export function createServer(origin?: string): McpServer {
     {
       title: "Training status",
       description:
-        "Fitness and training picture: training status and load balance, readiness, VO2 max, race predictions, " +
-        "endurance score and fitness age.",
+        "Fitness and training picture: training status and load balance, acute load, recovery time, readiness, VO2 max, " +
+        "heat and altitude acclimation, race predictions, endurance and hill score, fitness age. Also the lactate threshold, " +
+        "running power and cycling FTP, and heart rate zones.",
       inputSchema: z.object(dateShape),
       annotations: READ_ONLY,
     },

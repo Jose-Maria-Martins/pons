@@ -430,6 +430,73 @@ export function workoutRows(raw: unknown): Json[] {
   });
 }
 
+// -- Thresholds, zones and strength sets ------------------------------------------
+
+const compact = (o: Json): Json => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null && v !== undefined));
+
+/**
+ * The lactate threshold from Garmin's list of near-duplicate entries, combined into one object.
+ * Garmin's `speed` is in units of 10 m/s (0.397 is 3.97 m/s). Returns {} when there is nothing.
+ */
+export function lactateThreshold(raw: unknown): Json {
+  const list = (Array.isArray(raw) ? raw : [raw]).filter(isRecord);
+  const withSpeed = list.find((e) => typeof e.speed === "number");
+  // Garmin really spells the heart rate key "hearRate" in some entries.
+  const hr = (...keys: string[]) => list.map((e) => first(e, ...keys)).find((v) => v !== undefined);
+  const row: Json = compact({
+    date: first(withSpeed, "calendarDate"),
+    heart_rate: hr("heartRate", "hearRate"),
+    heart_rate_cycling: hr("heartRateCycling"),
+  });
+  if (typeof withSpeed?.speed === "number") {
+    const speed = round2(withSpeed.speed * 10);
+    row.speed_m_s = speed;
+    if (speed > 0) {
+      const seconds = Math.round(1000 / speed);
+      row.pace_per_km = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+    }
+  }
+  return row;
+}
+
+/** Heart rate zones, one entry per sport, from Garmin's heart rate zones list. */
+export function heartRateZones(raw: unknown): Json[] {
+  return (Array.isArray(raw) ? raw : []).filter(isRecord).map((z) => {
+    const row = pick(z, {
+      sport: ["sport"],
+      method: ["trainingMethod"],
+      max_hr: ["maxHeartRateUsed"],
+      resting_hr: ["restingHeartRateUsed"],
+      lactate_threshold_hr: ["lactateThresholdHeartRateUsed"],
+    });
+    const floors = [1, 2, 3, 4, 5].map((n) => z[`zone${n}Floor`]);
+    // A partial list would put floors under the wrong zones, so it is all five or none.
+    if (floors.every((f) => typeof f === "number")) row.zone_floors = floors;
+    return row;
+  });
+}
+
+/** The working sets of a strength workout from Garmin's exercise sets response. Rest sets are left out. */
+export function strengthSets(raw: unknown): Json[] {
+  const sets = isRecord(raw) && Array.isArray(raw.exerciseSets) ? raw.exerciseSets : [];
+  return sets
+    .filter((s): s is Json => isRecord(s) && s.setType === "ACTIVE")
+    .map((s) => {
+      const exercise = Array.isArray(s.exercises) ? s.exercises[0] : undefined;
+      const category = first(exercise, "category");
+      // Garmin stores the weight in grams and uses -1 for "no weight".
+      const grams = s.weight;
+      return compact({
+        // Garmin nulls the name when it equals the category.
+        exercise: first(exercise, "name") ?? category,
+        category,
+        reps: s.repetitionCount,
+        weight_kg: typeof grams === "number" && grams >= 0 ? round2(grams / 1000) : undefined,
+        duration_s: typeof s.duration === "number" ? Math.round(s.duration) : undefined,
+      });
+    });
+}
+
 /** A range that looks ahead: from `start` (default today) for `defaultDays` days. */
 export function upcomingRange(
   start: string | undefined,
