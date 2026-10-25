@@ -70,6 +70,9 @@ type Json = Record<string, unknown>;
 
 const ACTIVITY_PAGE_SIZE = 20;
 const MAX_ACTIVITY_PAGES = 10;
+// The sport groups Garmin's search can filter by. Any other sport (golf, tennis, padel...) is matched here
+// against each workout's type instead.
+const GARMIN_SPORT_GROUPS = new Set(["running", "cycling", "swimming", "hiking", "walking", "fitness_equipment", "multi_sport", "other"]);
 
 const isUnavailable = (v: unknown) => typeof v === "object" && v !== null && "unavailable" in v;
 
@@ -253,24 +256,35 @@ export class GarminApi {
   /**
    * Workouts in a range, newest first. Garmin pages by 20; at most MAX_ACTIVITY_PAGES pages (calls) are read.
    * With `limit` it stops once that many are collected and asks for no more than needed. Without `start`
-   * (and `end`) no date is sent, so Garmin answers with the most recent ones.
+   * (and `end`) no date is sent, so Garmin answers with the most recent ones. A sport outside Garmin's groups
+   * is matched against each workout's type, reading full pages; if none match, a note lists the types seen.
    */
   async activities(start: string | undefined, end: string | undefined, activityType?: string, limit?: number): Promise<Json[]> {
+    const sport = activityType && !GARMIN_SPORT_GROUPS.has(activityType) ? activityType : undefined;
     const rows: Json[] = [];
+    const seen = new Set<unknown>();
+    const done = () => (sport && rows.length === 0 && seen.size ? [{ note: `No ${sport} activities here. Types found: ${[...seen].join(", ")}.` }] : rows);
     for (let page = 0; page < MAX_ACTIVITY_PAGES; page++) {
-      const size = Math.min(ACTIVITY_PAGE_SIZE, (limit ?? Infinity) - rows.length);
+      const size = sport ? ACTIVITY_PAGE_SIZE : Math.min(ACTIVITY_PAGE_SIZE, (limit ?? Infinity) - rows.length);
       const batch = await this.get("/activitylist-service/activities/search/activities", {
         ...(start ? { startDate: start } : {}),
         ...(end ? { endDate: end } : {}),
         start: page * ACTIVITY_PAGE_SIZE,
         limit: size,
-        ...(activityType ? { activityType } : {}),
+        ...(activityType && !sport ? { activityType } : {}),
       });
-      if (!Array.isArray(batch) || batch.length === 0) return rows;
-      rows.push(...batch.map(activityRow));
-      if (batch.length < size || rows.length >= (limit ?? Infinity)) return rows;
+      if (!Array.isArray(batch) || batch.length === 0) return done();
+      const shaped = batch.map(activityRow);
+      for (const r of shaped) seen.add(r.type);
+      rows.push(...(sport ? shaped.filter((r) => r.type === sport) : shaped).slice(0, (limit ?? Infinity) - rows.length));
+      if (batch.length < size || rows.length >= (limit ?? Infinity)) return done();
     }
-    rows.push({ note: `Showing the first ${rows.length} activities; there may be more. Ask for a shorter date range.` });
+    const checked = MAX_ACTIVITY_PAGES * ACTIVITY_PAGE_SIZE;
+    rows.push({
+      note: sport
+        ? `Checked the first ${checked} activities and found ${rows.length} ${sport}; there may be more. Ask for a shorter date range.`
+        : `Showing the first ${rows.length} activities; there may be more. Ask for a shorter date range.`,
+    });
     return rows;
   }
 

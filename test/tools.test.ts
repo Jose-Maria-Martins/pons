@@ -156,6 +156,35 @@ describe("activities", () => {
     mockFetch(on(`${API}/activitylist-service`, () => json([])));
     expect(await api().activities("2030-01-01", "2030-01-02")).toEqual([]);
   });
+
+  it("matches a sport outside Garmin's groups itself, reading full pages until the limit", async () => {
+    const { spy } = mockFetch((url) => {
+      if (!url.pathname.startsWith("/activitylist-service")) return undefined;
+      const start = Number(url.searchParams.get("start"));
+      return json(Array.from({ length: 20 }, (_, i) => run(start + i + 1, (start + i) % 10 === 0 ? "golf" : "running")));
+    });
+
+    const rows = await api().activities(undefined, undefined, "golf", 3);
+
+    expect(rows.map((r) => [r.id, r.type])).toEqual([[1, "golf"], [11, "golf"], [21, "golf"]]);
+    const sent = spy.mock.calls.map(([u]) => Object.fromEntries(new URL(String(u)).searchParams));
+    expect(sent).toEqual([{ start: "0", limit: "20" }, { start: "20", limit: "20" }]);
+  });
+
+  it("says which types it saw when no workout is that sport", async () => {
+    mockFetch(on(`${API}/activitylist-service`, () => json([run(1), run(2, "tennis"), run(3)])));
+    expect(await api().activities("2030-01-01", "2030-01-31", "padel")).toEqual([{ note: "No padel activities here. Types found: running, tennis." }]);
+  });
+
+  it("says how many it checked when a sport search reaches the cap", async () => {
+    const { spy } = mockFetch(
+      on(`${API}/activitylist-service`, () => json([...Array.from({ length: 19 }, (_, i) => run(i + 1)), run(20, "golf")])),
+    );
+    const rows = await api().activities("2030-01-01", "2030-12-31", "golf");
+    expect(spy).toHaveBeenCalledTimes(10);
+    expect(rows).toHaveLength(11);
+    expect(rows[10]).toEqual({ note: expect.stringContaining("Checked the first 200 activities and found 10 golf") });
+  });
 });
 
 describe("activities tool limit", () => {
@@ -169,6 +198,17 @@ describe("activities tool limit", () => {
     expect(JSON.parse(result.content[0]!.text)).toEqual([{ id: 1, type: "running" }]);
     const url = new URL(String(spy.mock.calls[0]![0]));
     expect(Object.fromEntries(url.searchParams)).toEqual({ start: "0", limit: "5", activityType: "running" });
+  });
+
+  it("turns a sport name like 'Table Tennis' into Garmin's key and filters it in Pons", async () => {
+    const { accessToken } = await connect();
+    const { spy } = mockFetch(on(`${API}/activitylist-service`, () => json([{ activityId: 1, activityType: { typeKey: "table_tennis" } }])));
+
+    const result = (await message(await rpc(accessToken, "tools/call", { name: "activities", arguments: { limit: 5, activity_type: "Table Tennis" } }))).result;
+
+    expect(JSON.parse(result.content[0]!.text)).toEqual([{ id: 1, type: "table_tennis" }]);
+    const url = new URL(String(spy.mock.calls[0]![0]));
+    expect(Object.fromEntries(url.searchParams)).toEqual({ start: "0", limit: "20" });
   });
 
   it("looks back up to a year when the limit comes with only an end date", async () => {
