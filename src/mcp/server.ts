@@ -268,14 +268,18 @@ export function createServer(origin?: string): McpServer {
         "Workouts, newest first, with distance, duration, pace or speed, heart rate, training effect and load. " +
         "Defaults to the last 30 days; max 366. At most 200 activities are returned; ask for a shorter range if a " +
         "note says there are more. For 'my last N workouts' or 'my last 5 runs', use limit (with activity_type " +
-        "if needed) and no dates instead of guessing a date range. activity_type filters: running, cycling, " +
-        "swimming, hiking, walking, fitness_equipment, multi_sport, other.",
+        "if needed) and no dates instead of guessing a date range. activity_type takes a group (running, cycling, " +
+        "swimming, hiking, walking, fitness_equipment, multi_sport, other) or any single sport, such as golf, " +
+        "tennis, padel, yoga, strength_training or trail_running.",
       inputSchema: z.object({
         ...rangeShape,
         activity_type: z
           .string()
           .optional()
-          .describe("Only this kind: running, cycling, swimming, hiking, walking, fitness_equipment, multi_sport or other."),
+          .describe(
+            "Only this kind: a group (running, cycling, swimming, hiking, walking, fitness_equipment, multi_sport, other) " +
+              "or one sport by Garmin's name for it, e.g. golf, tennis, padel, strength_training.",
+          ),
         limit: z
           .number()
           .int()
@@ -288,7 +292,8 @@ export function createServer(origin?: string): McpServer {
     },
     ({ start_date, end_date, activity_type, limit }) =>
       call("activities", async () => {
-        const type = activity_type?.trim().toLowerCase() || undefined;
+        // "Table Tennis" and "table-tennis" become Garmin's "table_tennis".
+        const type = activity_type?.trim().toLowerCase().replace(/[\s-]+/g, "_") || undefined;
         // "The last N": no default 30 days, Garmin returns the most recent ones.
         if (limit !== undefined && !start_date && !end_date) return currentApi().activities(undefined, undefined, type, limit);
         // A limit with only an end date looks back up to a year from it.
