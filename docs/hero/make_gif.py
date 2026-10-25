@@ -23,6 +23,8 @@ for i in range(1, 9):
     frames.append(({"bars": round(i / 8, 3), "a2": 0}, 60))
 frames.append(({"a2": 0}, 500))
 frames.append(({}, 4500))
+# Start on the finished answer: same loop, but anything that shows only the first frame shows the result.
+frames.insert(0, frames.pop())
 
 
 def render(i: int, params: dict) -> Path:
@@ -38,7 +40,7 @@ def render(i: int, params: dict) -> Path:
 
 
 images = [Image.open(render(i, p)).convert("RGB") for i, (p, _) in enumerate(frames)]
-palette = images[-1].quantize(colors=255, method=Image.Quantize.MEDIANCUT)
+palette = images[0].quantize(colors=255, method=Image.Quantize.MEDIANCUT)
 gif = [im.quantize(palette=palette, dither=Image.Dither.NONE) for im in images]
 target = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE.parent / "hero.gif"
 gif[0].save(target, save_all=True, append_images=gif[1:], duration=[d for _, d in frames], loop=0, optimize=True)
