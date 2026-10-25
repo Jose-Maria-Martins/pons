@@ -70,7 +70,7 @@ Works on the free plan too. ChatGPT has no ready-made link, so it takes a few fi
 </details>
 
 <details>
-<summary><b>Gemini</b>: not tested yet</summary>
+<summary><picture><img src="docs/logos/gemini.png" height="16" alt=""></picture> <b>Gemini</b>: not tested yet</summary>
 
 Google allows custom apps for personal Google accounts, 18 or older, in the US, in English, with Keep Activity on.
 
