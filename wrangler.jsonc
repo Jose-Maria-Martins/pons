@@ -3,6 +3,10 @@
   "name": "pons",
   "main": "src/index.ts",
   "compatibility_date": "2026-06-01",
+  // Keep pons.jose-maria-martins.workers.dev working next to the custom domain.
+  "workers_dev": true,
+  // The landing page. A request that matches a file in site/ gets that file; every other path runs the Worker.
+  "assets": { "directory": "./site/" },
   // nodejs_compat: the agents package needs node:async_hooks.
   // global_fetch_strictly_public: lets the OAuth library fetch client metadata documents.
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
