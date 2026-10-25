@@ -16,7 +16,9 @@
 
 ## Use AI as your coach
 
-> *"Make me a 16-week plan for the London Marathon, based on my current fitness."*
+<p align="center"><img src="docs/plan.gif" width="720" alt="Someone asks for a 16-week London Marathon plan; Pons reads their training status and recent runs, and the AI answers with a week-by-week distance chart that builds, peaks and tapers, plus the first week's sessions. Made-up data."></p>
+
+More you can ask:
 
 - *"How did I sleep this week compared with last month?"*
 - *"Am I recovered enough for a hard run today?"*

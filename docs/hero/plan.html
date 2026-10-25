@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pons marathon plan</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: #e4e2dc;
+    --user: #ecebe6;
+    --accent: #0a7c66;
+    --accent-soft: #e3f2ee;
+    --base: #b9ddd4;
+    --build: #6fb9a6;
+    --taper: #e7c9a6;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 800px; height: 500px; background: var(--bg); overflow: hidden; }
+  body {
+    font: 15px/1.55 "Segoe UI", -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    padding: 28px 40px;
+  }
+  .window {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    height: 100%;
+    padding: 26px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+  }
+  .user {
+    align-self: flex-end;
+    background: var(--user);
+    padding: 10px 16px;
+    border-radius: 14px;
+    max-width: 85%;
+  }
+  .tools { display: flex; gap: 8px; }
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 12px 4px 6px;
+  }
+  .tool img { width: 18px; height: 18px; border-radius: 5px; }
+  .tool code { font: 12.5px ui-monospace, Consolas, monospace; }
+  .answer p + p { margin-top: 10px; }
+  .weeks {
+    display: grid;
+    grid-template-columns: repeat(16, 1fr);
+    gap: 6px;
+    margin: 10px 0 6px;
+    align-items: end;
+    height: 112px;
+  }
+  .day { display: flex; flex-direction: column; align-items: center; gap: 3px; height: 100%; justify-content: flex-end; }
+  .bar { width: 70%; border-radius: 5px 5px 2px 2px; background: var(--base); }
+  .bar.build { background: var(--build); }
+  .bar.peak { background: var(--accent); }
+  .bar.taper { background: var(--taper); }
+  .day em { font-style: normal; font-size: 11px; color: var(--muted); }
+  .day span { font-size: 11px; color: var(--muted); }
+  .legend { display: flex; gap: 16px; font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+  b { font-weight: 600; }
+  .hide { visibility: hidden; }
+  .caret::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="user" id="q">Make me a 16-week plan for the London Marathon, based on my current fitness.</div>
+    <div class="tools" id="tool">
+      <div class="tool"><img src="../../assets/icon.png" alt="">Pons <code>training_status</code></div>
+      <div class="tool"><img src="../../assets/icon.png" alt="">Pons <code>activities</code></div>
+    </div>
+    <div class="answer">
+      <p id="a1">You run <b>38 km a week</b>, your longest recent run is <b>21 km</b>, and Garmin predicts <b>3:42</b> for a marathon. Here's a plan that builds to <b>70 km</b> and tapers into race day.</p>
+      <div id="week">
+        <div class="weeks">
+          <div class="day"><em>40</em><div class="bar" style="height:36px"></div><span>1</span></div>
+          <div class="day"><em>44</em><div class="bar" style="height:40px"></div><span>2</span></div>
+          <div class="day"><em>48</em><div class="bar" style="height:44px"></div><span>3</span></div>
+          <div class="day"><em>40</em><div class="bar" style="height:36px"></div><span>4</span></div>
+          <div class="day"><em>50</em><div class="bar build" style="height:46px"></div><span>5</span></div>
+          <div class="day"><em>55</em><div class="bar build" style="height:50px"></div><span>6</span></div>
+          <div class="day"><em>60</em><div class="bar build" style="height:55px"></div><span>7</span></div>
+          <div class="day"><em>48</em><div class="bar build" style="height:44px"></div><span>8</span></div>
+          <div class="day"><em>62</em><div class="bar build" style="height:57px"></div><span>9</span></div>
+          <div class="day"><em>66</em><div class="bar build" style="height:60px"></div><span>10</span></div>
+          <div class="day"><em>70</em><div class="bar peak" style="height:64px"></div><span>11</span></div>
+          <div class="day"><em>56</em><div class="bar peak" style="height:51px"></div><span>12</span></div>
+          <div class="day"><em>70</em><div class="bar peak" style="height:64px"></div><span>13</span></div>
+          <div class="day"><em>56</em><div class="bar taper" style="height:51px"></div><span>14</span></div>
+          <div class="day"><em>42</em><div class="bar taper" style="height:38px"></div><span>15</span></div>
+          <div class="day"><em>28</em><div class="bar taper" style="height:26px"></div><span>16</span></div>
+        </div>
+        <div class="legend">
+          <span><i style="background:var(--base)"></i>Base</span>
+          <span><i style="background:var(--build)"></i>Build</span>
+          <span><i style="background:var(--accent)"></i>Peak</span>
+          <span><i style="background:var(--taper)"></i>Taper</span>
+          <span>km per week</span>
+        </div>
+      </div>
+      <p id="a2">Week 1: easy 8 km Tuesday, 6 × 800 m Thursday, easy 6 km Friday, long run 16 km Sunday. Ask me each week and I'll adjust it to your sleep and HRV.</p>
+    </div>
+  </div>
+<script>
+  // Frame state from the URL, for rendering the GIF: ?q=chars&tool=0|1&a1=0|1&bars=0..1&a2=0|1
+  const f = new URLSearchParams(location.search);
+  if (f.size) {
+    const q = document.getElementById("q"), full = q.textContent, n = Number(f.get("q") ?? full.length);
+    q.textContent = full.slice(0, n);
+    if (n === 0) q.classList.add("hide");
+    if (f.get("caret") === "1") q.classList.add("caret");
+    for (const id of ["tool", "a1", "a2"]) if (f.get(id) === "0") document.getElementById(id).classList.add("hide");
+    const b = Number(f.get("bars") ?? 1);
+    for (const day of document.querySelectorAll(".day")) {
+      const bar = day.querySelector(".bar"), h = parseFloat(bar.style.height);
+      bar.style.height = (h * b) + "px";
+      if (b < 1) day.querySelector("em").classList.add("hide");
+      if (b === 0) day.classList.add("hide");
+    }
+    if (b < 1) document.querySelector(".legend").classList.add("hide");
+  }
+</script>
+</body>
+</html>
