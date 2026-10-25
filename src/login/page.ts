@@ -182,6 +182,7 @@ export function privacyPage(sourceUrl: string, lang: Lang): Response {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="/icon.png">
 <title>${s.privacyTitle}</title>
+<link rel="preload" href="/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 <script src="/head.js"></script></head>
 <body>
@@ -217,7 +218,7 @@ ${list(s.neverItems)}
       "Cache-Control": "no-store",
       "Referrer-Policy": "no-referrer",
       "X-Content-Type-Options": "nosniff",
-      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
     },
   });
 }
