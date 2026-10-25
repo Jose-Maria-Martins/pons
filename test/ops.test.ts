@@ -232,14 +232,16 @@ describe("analytics", () => {
 });
 
 describe("/privacy", () => {
-  it("serves the privacy page without scripts", async () => {
+  it("serves the privacy page with the landing page's own script and styles only", async () => {
     const res = await send("/privacy");
     const html = await res.text();
     expect(res.status).toBe(200);
     expect(html).toContain("Pons privacy");
     expect(html).toContain("not affiliated with Garmin, Anthropic, OpenAI or Google");
     expect(html).toContain("never stores");
-    expect(html).not.toContain("<script");
+    expect(html.match(/<script[^>]*>/g)).toEqual(['<script src="/head.js">']);
+    expect(html).toContain('<link rel="stylesheet" href="/styles.css">');
+    expect(res.headers.get("Content-Security-Policy")).toContain("script-src 'self';");
     expect(res.headers.get("Content-Security-Policy")).toContain("frame-ancestors 'none'");
   });
 
@@ -257,7 +259,6 @@ describe("/privacy", () => {
     expect(html).toContain('<a href="https://git.example.test/someone/pons" rel="noopener">read the code</a>');
     expect(html).toContain('open an issue at <a href="https://git.example.test/someone/pons/issues"');
     expect(html).not.toContain("contact the person who shared");
-    expect(html).not.toContain("<script");
   });
 
   it("is linked from the login page", async () => {

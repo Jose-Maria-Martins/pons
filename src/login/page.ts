@@ -161,17 +161,40 @@ export function messagePage(nonce: string, lang: Lang, text: string, status = 40
   return new Response(res.body, { status, headers: res.headers });
 }
 
-/** The privacy page at /privacy. Keep it in step with PRIVACY.md and with what src/analytics.ts writes. */
+const MOON = `<svg class="light-only" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>`;
+const SUN = `<svg class="dark-only" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>`;
+
+/**
+ * The privacy page at /privacy, in the landing page's look: it uses site/styles.css and site/head.js.
+ * Keep it in step with PRIVACY.md and with what src/analytics.ts writes.
+ */
 export function privacyPage(sourceUrl: string, lang: Lang): Response {
   const s = STRINGS[lang];
-  const nonce = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
   const source = sourceUrl.trim().replace(/\/+$/, "");
   const openSource = source ? s.openSource(`<a href="${esc(source)}" rel="noopener">${s.readTheCode}</a>`) : "";
   const contact = source
     ? s.contactIssue(`<a href="${esc(source)}/issues" rel="noopener">${esc(source)}/issues</a>`)
     : s.contactSharer;
   const list = (items: string[]) => `<ul>\n${items.map((i) => `<li>${i}</li>`).join("\n")}\n</ul>`;
-  const body = `<p>${s.privacyIntro}${openSource}</p>
+  const glance = s.glanceItems.map(([t, d]) => `<li><b>${t}</b>${d}</li>`).join("\n");
+  const html = `<!doctype html>
+<html lang="${s.htmlLang}"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="/icon.png">
+<title>${s.privacyTitle}</title>
+<link rel="stylesheet" href="/styles.css">
+<script src="/head.js"></script></head>
+<body>
+<header class="top"><div class="wrap">
+<a class="brand" href="/"><img src="/img/icon.png" alt="">Pons</a>
+<div class="end">${langNav(lang, "/privacy")}<button class="theme" type="button" aria-label="${s.darkMode}" aria-pressed="false">${MOON}${SUN}</button></div>
+</div></header>
+<main class="wrap doc">
+<h1>${s.privacyTitle}</h1>
+<p class="lede">${s.privacyIntro}${openSource}</p>
+<ul class="glance" aria-label="${s.glanceLabel}">
+${glance}
+</ul>
 <h2>${s.collectsH}</h2>
 <p>${s.collectsLead}</p>
 ${list(s.collectsItems)}
@@ -184,6 +207,17 @@ ${list(s.neverItems)}
 <h2>${s.deleteH}</h2>
 <p>${s.deleteText}</p>
 <h2>${s.contactH}</h2>
-<p>${s.contactLead}${contact}</p>`;
-  return shell({ nonce, lang, body, title: s.privacyTitle, nav: langNav(lang, "/privacy") });
+<p>${s.contactLead}${contact}</p>
+</main>
+<footer><div class="wrap"><a class="brand" href="/"><img src="/img/icon.png" alt="">Pons</a></div></footer>
+</body></html>`;
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      "Cache-Control": "no-store",
+      "Referrer-Policy": "no-referrer",
+      "X-Content-Type-Options": "nosniff",
+      "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+    },
+  });
 }

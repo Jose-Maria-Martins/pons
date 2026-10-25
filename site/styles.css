@@ -53,6 +53,9 @@ code { font-family: "Geist Mono", ui-monospace, Consolas, monospace; }
 .top nav { display: flex; gap: 30px; }
 .top .end { justify-self: end; display: flex; align-items: center; gap: 22px; }
 .top a.l { color: var(--muted); text-decoration: none; font-size: 15px; } .top a.l:hover { color: var(--ink); }
+.theme { display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--ink); cursor: pointer; }
+.theme:hover { border-color: var(--muted); }
+.theme svg { width: 16px; height: 16px; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; height: 44px; padding: 0 18px; border-radius: 999px; font: 500 15px/1 inherit; font-family: inherit; text-decoration: none; border: 1px solid var(--line-strong); background: var(--card); color: var(--ink); cursor: pointer; white-space: nowrap; }
 .btn:hover { border-color: var(--muted); }
@@ -123,7 +126,8 @@ h2 { font-size: clamp(32px, 3.4vw, 44px); letter-spacing: -0.04em; line-height: 
 .span-row { display: grid; grid-template-columns: minmax(0, 1fr) 132px minmax(0, 1fr); align-items: center; }
 .span-head { padding-bottom: 18px; color: var(--muted); font-size: 15px; }
 .span-head .g { display: flex; justify-content: flex-end; align-items: center; gap: 8px; }
-.span-head .garmin { height: 21px; width: auto; }
+/* The letters fill the bottom half of the logo, under the triangle: lift it half its height so the letters sit on the text's baseline. */
+.span-head .garmin { height: 21px; width: auto; translate: 0 -50%; }
 .span-head .mid { display: grid; place-items: center; }
 .span-head .mid svg { width: 76px; height: 38px; color: var(--ink); }
 .span-head .ai { display: flex; align-items: center; gap: 10px; }
@@ -237,6 +241,20 @@ caption { text-align: left; font-weight: 600; padding: 0 10px 8px; }
 .last h2 { font-size: clamp(36px, 4.6vw, 56px); letter-spacing: -0.045em; line-height: 1.02; }
 .last .cta { justify-content: flex-end; }
 
+/* The privacy page. The Worker serves it with this stylesheet. */
+/* Keep the end in the last column, also on the privacy page, which has no page links. */
+.top .end { grid-column: -2; }
+.top nav.lang { display: block; color: var(--muted); font-size: 15px; } .top .lang a { color: var(--muted); text-decoration: none; } .top .lang a:hover, .top .lang [aria-current] { color: var(--ink); }
+.doc { max-width: 720px; padding-top: 88px; }
+.doc .lede { margin: 24px 0 0; max-width: none; font-size: 19px; }
+.doc .lede a, .doc p a { color: var(--accent); }
+.glance { list-style: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: 28px; margin: 56px 0 0; padding: 0; }
+.glance li { display: grid; gap: 6px; align-content: start; padding-top: 16px; border-top: 2px solid var(--accent); color: var(--muted); font-size: 15px; line-height: 1.5; }
+.glance b { color: var(--ink); font-size: 16px; font-weight: 600; }
+.doc h2 { margin: 72px 0 16px; padding-top: 28px; border-top: 1px solid var(--line); font-size: 26px; letter-spacing: -0.03em; }
+.doc ul:not(.glance) { padding-left: 20px; } .doc li::marker { color: var(--muted); }
+.doc ul:not(.glance) li { margin: 10px 0; }
+
 footer { margin-top: 120px; border-top: 1px solid var(--line); }
 footer .wrap { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 24px 0 90px; color: var(--muted); font-size: 14px; }
 footer .brand { font-size: 14px; color: var(--ink); } footer .brand img { width: 20px; height: 20px; border-radius: 5px; }
@@ -245,6 +263,9 @@ footer a.l { color: var(--muted); text-decoration: none; } footer a.l:hover { co
 @media (max-width: 900px) {
   .top .wrap { grid-template-columns: 1fr auto; height: 64px; }
   .top nav, .top a.l { display: none; }
+  .top .end { gap: 14px; }
+  .doc { padding-top: 56px; }
+  .glance { grid-template-columns: 1fr; gap: 20px; margin-top: 40px; }
   .hero { padding-top: 44px; }
   .lede { font-size: 18px; }
   .crossing { margin-top: 28px; }

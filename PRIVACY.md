@@ -2,6 +2,12 @@
 
 Pons lets AI apps such as Claude, ChatGPT and Gemini read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin, Anthropic, OpenAI or Google. It is open source: the code is in this repository. The same text is served at `/privacy`.
 
+In short:
+
+- **Your password** goes straight to Garmin. Pons never saves it.
+- **Your health data** is read from Garmin when you ask, passed to your AI app, and never kept.
+- **Statistics:** which tool ran and whether it worked. Nothing about your health.
+
 ## What Pons collects
 
 Usage statistics only, and nothing about your health:
@@ -20,6 +26,7 @@ To limit abuse, Pons also counts sign-in attempts per IP address and per scrambl
 - Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.
 - If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.
 - Your language choice, if you pick one, in a cookie in your own browser for one year.
+- Your light or dark choice, if you pick one, in your own browser. It is never sent to Pons.
 
 ## What Pons never stores
 

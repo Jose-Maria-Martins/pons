@@ -44,6 +44,11 @@ export interface Strings {
   /** Follows the intro when there is a source URL; takes the finished link. */
   openSource: (link: string) => string;
   readTheCode: string;
+  /** The three-line summary under the intro: a short title and one sentence each. */
+  glanceLabel: string;
+  glanceItems: [string, string][];
+  /** The light/dark switch in the page header. */
+  darkMode: string;
   collectsH: string;
   collectsLead: string;
   collectsItems: string[];
@@ -98,6 +103,13 @@ export const STRINGS: Record<Lang, Strings> = {
     privacyIntro: "Pons lets AI apps such as Claude, ChatGPT and Gemini read your Garmin Connect data. It is a hobby project run by one person. It is not affiliated with Garmin, Anthropic, OpenAI or Google.",
     openSource: (link) => ` It is open source: ${link}.`,
     readTheCode: "read the code",
+    glanceLabel: "In short",
+    glanceItems: [
+      ["Your password", "Goes straight to Garmin. Pons never saves it."],
+      ["Your health data", "Read from Garmin when you ask, passed to your AI app, and never kept."],
+      ["Statistics", "Which tool ran and whether it worked. Nothing about your health."],
+    ],
+    darkMode: "Dark mode",
     collectsH: "What Pons collects",
     collectsLead: "Usage statistics only, and nothing about your health:",
     collectsItems: [
@@ -114,6 +126,7 @@ export const STRINGS: Record<Lang, Strings> = {
       'Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.',
       "If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.",
       "Your language choice, if you pick one, in a cookie in your own browser for one year.",
+      "Your light or dark choice, if you pick one, in your own browser. It is never sent to Pons.",
     ],
     neverH: "What Pons never stores",
     neverItems: [
@@ -164,6 +177,13 @@ export const STRINGS: Record<Lang, Strings> = {
       "O Pons permite que aplicações de IA como o Claude, o ChatGPT e o Gemini leiam os seus dados do Garmin Connect. É um projeto pessoal, mantido por uma pessoa. Não tem qualquer ligação à Garmin, à Anthropic, à OpenAI nem à Google.",
     openSource: (link) => ` É de código aberto: ${link}.`,
     readTheCode: "ver o código",
+    glanceLabel: "Em resumo",
+    glanceItems: [
+      ["A sua palavra-passe", "Vai diretamente para a Garmin. O Pons nunca a guarda."],
+      ["Os seus dados de saúde", "Lidos da Garmin quando pergunta, passados à sua aplicação de IA e nunca guardados."],
+      ["Estatísticas", "Que ferramenta foi usada e se funcionou. Nada sobre a sua saúde."],
+    ],
+    darkMode: "Modo escuro",
     collectsH: "O que o Pons recolhe",
     collectsLead: "Apenas estatísticas de utilização, e nada sobre a sua saúde:",
     collectsItems: [
@@ -181,6 +201,7 @@ export const STRINGS: Record<Lang, Strings> = {
       "O seu fuso horário Garmin (por exemplo Europe/Lisbon), na mesma ligação, para que «hoje» seja a sua data local.",
       "Se a sua conta usa verificação em dois passos, o início de sessão por concluir, encriptado, até 10 minutos.",
       "Se escolher um idioma, essa escolha fica num cookie no seu próprio navegador durante um ano.",
+      "Se escolher o modo claro ou escuro, essa escolha fica no seu próprio navegador. Nunca é enviada ao Pons.",
     ],
     neverH: "O que o Pons nunca guarda",
     neverItems: [
