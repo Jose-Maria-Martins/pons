@@ -16,7 +16,7 @@
 
 ## Use AI as your coach
 
-<p align="center"><img src="docs/plan.gif" width="720" alt="Someone asks for a 16-week London Marathon plan; Pons reads their training status and recent runs, and the AI answers with a week-by-week distance chart that builds, peaks and tapers, plus the first week's sessions. Made-up data."></p>
+> *"Make me a 16-week plan for the London Marathon, based on my current fitness."*
 
 More you can ask:
 
@@ -26,6 +26,8 @@ More you can ask:
 - *"When did my Body Battery drop today, and why?"*
 
 Your AI reads what it needs from Garmin Connect and answers in plain language, compared with your own history.
+
+<p align="center"><img src="docs/plan.gif" width="720" alt="Someone asks for a 16-week London Marathon plan; Pons reads their training status and recent runs, and the AI answers with a week-by-week distance chart that builds, peaks and tapers, plus the first week's sessions. Made-up data."></p>
 
 ## Get started
 
@@ -108,6 +110,8 @@ I bought my Garmin before running the Lisbon Marathon. It's on my wrist 24 hours
 The first week, the Garmin Connect app amazed me. By the second, I was curious: what more could I learn about myself if an AI could read all of it?
 
 Pons is my answer. Connect your Garmin to your AI and turn all that data into something you can use: smarter training, better recovery, better sleep.
+
+Made by José Maria Martins. Say hi on [X](https://x.com/JoseMartiiins) or [LinkedIn](https://www.linkedin.com/in/josemsfmartins/).
 
 ## Questions?
 
