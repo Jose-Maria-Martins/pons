@@ -34,7 +34,7 @@ https://pons.jose-maria-martins.workers.dev/mcp
 ```
 
 <details open>
-<summary><b>Claude</b>: one link, about a minute</summary>
+<summary><img src="docs/logos/claude.svg" height="16" alt=""> <b>Claude</b>: one link, about a minute</summary>
 
 Every plan works; the Free plan allows one custom connector. Add it once on the web or desktop app and it also works in the phone app.
 
@@ -46,7 +46,7 @@ Every plan works; the Free plan allows one custom connector. Add it once on the 
 </details>
 
 <details>
-<summary><b>ChatGPT</b>: a short form, once</summary>
+<summary><picture><source media="(prefers-color-scheme: dark)" srcset="docs/logos/openai-white.svg"><img src="docs/logos/openai-black.svg" height="16" alt=""></picture> <b>ChatGPT</b>: a short form, once</summary>
 
 Works on the free plan too. ChatGPT has no ready-made link, so it takes a few fields, once, on chatgpt.com in a browser.
 
