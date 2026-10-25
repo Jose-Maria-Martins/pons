@@ -1,0 +1,5 @@
+# Headers for the landing page and its files. Pages the Worker builds (/authorize, /privacy) set their own.
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; style-src-attr 'unsafe-inline'; img-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
