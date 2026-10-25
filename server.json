@@ -1,0 +1,25 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Jose-Maria-Martins/pons",
+  "title": "Pons",
+  "description": "Garmin MCP server: connect your Garmin to Claude or ChatGPT and use AI as your coach. Read-only.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/Jose-Maria-Martins/pons",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/Jose-Maria-Martins/pons",
+  "icons": [
+    {
+      "src": "https://pons.jose-maria-martins.workers.dev/icon.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://pons.jose-maria-martins.workers.dev/mcp"
+    }
+  ]
+}
