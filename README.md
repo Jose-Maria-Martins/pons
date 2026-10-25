@@ -34,7 +34,7 @@ https://pons.jose-maria-martins.workers.dev/mcp
 ```
 
 <details open>
-<summary><img src="docs/logos/claude.svg" height="16" alt=""> <b>Claude</b>: one link, about a minute</summary>
+<summary><picture><img src="docs/logos/claude.svg" height="16" alt=""></picture> <b>Claude</b>: one link, about a minute</summary>
 
 Every plan works; the Free plan allows one custom connector. Add it once on the web or desktop app and it also works in the phone app.
 
