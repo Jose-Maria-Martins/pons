@@ -31,6 +31,8 @@ Your AI reads what it needs from Garmin Connect and answers in plain language, c
 
 ## Get started
 
+Works with any Garmin that syncs to Garmin Connect.
+
 Pons is a Garmin MCP server: it connects Garmin Connect to AI apps through [MCP](https://modelcontextprotocol.io), the open standard for plugging your data into an AI. You add it once with this address:
 
 ```

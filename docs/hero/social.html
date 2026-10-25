@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pons social preview</title>
+<!-- The repo's link preview (Settings, Social preview). Render at 1280x640 with headless Edge:
+     msedge --headless=new --hide-scrollbars --window-size=1280,640 --screenshot=docs/social-preview.png docs/hero/social.html -->
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --accent: #0a7c66;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 640px; background: var(--bg); overflow: hidden; }
+  body {
+    font: 15px/1.5 "Segoe UI", -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    display: grid;
+    grid-template-columns: 440px 720px;
+    align-items: center;
+    gap: 40px;
+    padding: 0 40px;
+  }
+  .brand { display: flex; align-items: center; gap: 14px; margin-bottom: 36px; }
+  .brand img { width: 56px; height: 56px; border-radius: 14px; }
+  .brand span { font-size: 34px; font-weight: 600; letter-spacing: -0.01em; }
+  h1 { font-size: 40px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+  h1 em { font-style: normal; color: var(--accent); }
+  p { margin-top: 24px; font-size: 22px; line-height: 1.4; color: var(--muted); }
+  /* Just the chat card from hero.html, at full size: its page has 28px x 40px padding around a 720x384 card. */
+  .shot { width: 720px; height: 384px; overflow: hidden; border-radius: 14px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 12px 32px rgba(0,0,0,.08); }
+  .shot iframe { width: 800px; height: 440px; border: 0; margin: -28px 0 0 -40px; }
+</style>
+</head>
+<body>
+  <div>
+    <div class="brand"><img src="../../assets/icon.png" alt=""><span>Pons</span></div>
+    <h1>Every run.<br>Every night.<br>Every heartbeat.<br><em>Now one question away.</em></h1>
+    <p>Connect your Garmin to Claude or ChatGPT and use AI as your coach.</p>
+  </div>
+  <div class="shot"><iframe src="hero.html?all=1" title=""></iframe></div>
+</body>
+</html>
