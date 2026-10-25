@@ -1,0 +1,112 @@
+﻿<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pons hero</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --panel: #ffffff;
+    --ink: #1d1d1f;
+    --muted: #6e6e73;
+    --line: #e4e2dc;
+    --user: #ecebe6;
+    --accent: #0a7c66;
+    --accent-soft: #e3f2ee;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 800px; height: 440px; background: var(--bg); overflow: hidden; }
+  body {
+    font: 15px/1.55 "Segoe UI", -apple-system, system-ui, sans-serif;
+    color: var(--ink);
+    padding: 28px 40px;
+  }
+  .window {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    height: 100%;
+    padding: 26px 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.05);
+  }
+  .user {
+    align-self: flex-end;
+    background: var(--user);
+    padding: 10px 16px;
+    border-radius: 14px;
+    max-width: 75%;
+  }
+  .tool {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    font-size: 13px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 999px;
+    padding: 4px 12px 4px 6px;
+  }
+  .tool img { width: 18px; height: 18px; border-radius: 5px; }
+  .tool code { font: 12.5px ui-monospace, Consolas, monospace; }
+  .answer p + p { margin-top: 10px; }
+  .week {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 8px;
+    margin: 10px 0 16px;
+    align-items: end;
+    height: 104px;
+  }
+  .day { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar { width: 58%; border-radius: 6px 6px 3px 3px; background: #b9ddd4; }
+  .bar.best { background: var(--accent); }
+  .bar.low { background: #e7c9a6; }
+  .day em { font-style: normal; font-size: 11.5px; color: var(--muted); }
+  .day span { font-size: 12px; color: var(--muted); }
+  b { font-weight: 600; }
+  .hide { visibility: hidden; }
+  .caret::after { content: ""; display: inline-block; width: 2px; height: 1.1em; margin-left: 2px; vertical-align: -3px; background: var(--ink); }
+</style>
+</head>
+<body>
+  <div class="window">
+    <div class="user" id="q">How did I sleep this week compared with last month?</div>
+    <div class="tool" id="tool"><img src="../../assets/icon.png" alt="">Pons <code>sleep_history</code></div>
+    <div class="answer">
+      <p id="a1">You slept <b>7 h 15 min</b> a night this week, <b>24 min more</b> than your 30-day average.</p>
+      <div class="week" id="week">
+        <div class="day"><em>6:58</em><div class="bar" style="height:46px"></div><span>Mon</span></div>
+        <div class="day"><em>8:05</em><div class="bar best" style="height:64px"></div><span>Tue</span></div>
+        <div class="day"><em>7:20</em><div class="bar" style="height:52px"></div><span>Wed</span></div>
+        <div class="day"><em>5:50</em><div class="bar low" style="height:29px"></div><span>Thu</span></div>
+        <div class="day"><em>7:14</em><div class="bar" style="height:51px"></div><span>Fri</span></div>
+        <div class="day"><em>7:41</em><div class="bar" style="height:58px"></div><span>Sat</span></div>
+        <div class="day"><em>7:36</em><div class="bar" style="height:56px"></div><span>Sun</span></div>
+      </div>
+      <p id="a2">Tuesday was your best night (score 86). Thursday was short, 5 h 50 min after a late run, and your HRV dipped the next morning, then recovered by Saturday.</p>
+    </div>
+  </div>
+<script>
+  // Frame state from the URL, for rendering the GIF: ?q=chars&tool=0|1&a1=0|1&bars=0..1&a2=0|1
+  const f = new URLSearchParams(location.search);
+  if (f.size) {
+    const q = document.getElementById("q"), full = q.textContent, n = Number(f.get("q") ?? full.length);
+    q.textContent = full.slice(0, n);
+    if (n === 0) q.classList.add("hide");
+    if (f.get("caret") === "1") q.classList.add("caret");
+    for (const id of ["tool", "a1", "a2"]) if (f.get(id) === "0") document.getElementById(id).classList.add("hide");
+    const b = Number(f.get("bars") ?? 1);
+    for (const day of document.querySelectorAll(".day")) {
+      const bar = day.querySelector(".bar"), h = parseFloat(bar.style.height);
+      bar.style.height = (h * b) + "px";
+      if (b < 1) day.querySelector("em").classList.add("hide");
+      if (b === 0) day.classList.add("hide");
+    }
+  }
+</script>
+</body>
+</html>
