@@ -1,84 +1,59 @@
-/* Dusk tokens (Hallmark v2.0.0), with Pons's own choices: Geist as both faces, sage as the "done" signal, and a day colourway for the light/dark switch. */
+/* Pons tokens, after Vercel's Geist system: a black or white page, grey hairlines, Geist set tight, and one blue for data, links and focus. */
 /* Geist and Geist Mono 1.7.2 from Vercel's geist package, licensed under the OFL (fonts/OFL.txt). */
 @font-face { font-family: Geist; src: url(fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url(fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 :root {
   color-scheme: dark;
   --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
-  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1.0625rem; --text-lg: 1.25rem; --text-xl: 1.5625rem; --text-2xl: 1.953rem; --text-3xl: 2.441rem;
-  --text-display-s: clamp(2.25rem, 4vw + 0.5rem, 3.75rem); --text-display: clamp(2.75rem, 5vw + 1rem, 5.25rem);
-  --text-section: clamp(2rem, 2.5vw + 1rem, 3.5rem); --text-title: clamp(1.25rem, 0.75vw + 0.875rem, 1.625rem); --text-lead: clamp(1.125rem, 0.35vw + 1rem, 1.375rem);
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in: cubic-bezier(0.7, 0, 0.84, 0); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
-  --dur-micro: 120ms; --dur-short: 220ms; --dur-long: 420ms;
-  --color-error: oklch(72% 0.15 27); --color-success: oklch(76% 0.13 150);
-  --container: 1200px; --gutter: 64px; --gap-columns: 64px; --nav-h: 64px; --section-gap-s: 120px; --section-gap: 144px; --section-gap-l: 176px;
-  --z-base: 1; --z-raised: 10; --z-dropdown: 100; --z-sticky: 200; --z-sticky-nav: 300; --z-modal: 400; --z-toast: 500; --z-tooltip: 600;
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 2.441rem;
+  --text-display: clamp(2.75rem, 5vw + 1rem, 4.5rem); --text-display-s: clamp(2.25rem, 3.5vw + 1rem, 3.5rem);
+  --text-section: clamp(1.875rem, 1.5vw + 1.25rem, 2.5rem); --text-title: 1.5rem; --text-lead: clamp(1.125rem, 0.4vw + 1rem, 1.25rem);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-micro: 120ms; --dur-short: 200ms; --dur-long: 420ms;
+  --container: 1080px; --gutter: 32px; --pad: 48px; --nav-h: 64px;
+  --z-base: 1; --z-raised: 10; --z-sticky-nav: 300; --z-modal: 400;
 
-  --color-paper: oklch(17.5% 0.014 268); --color-paper-2: oklch(21% 0.016 268); --color-paper-3: oklch(25% 0.017 268);
-  --color-ink: oklch(96% 0.006 75); --color-ink-2: oklch(85% 0.010 262); --color-muted: oklch(70% 0.016 262);
-  --color-rule: oklch(30% 0.016 266); --color-rule-2: oklch(38% 0.016 266); --color-light: oklch(100% 0 0); --color-shade: oklch(10% 0.022 268);
-  --color-accent: oklch(80% 0.07 160); --color-accent-ink: oklch(20% 0.03 160); --color-accent-hi: oklch(86% 0.06 160);
-  --color-accent-deep: oklch(45% 0.08 160); --color-accent-soft: oklch(80% 0.07 160 / 0.14); --color-focus: oklch(82% 0.08 160);
-  --color-accent-2: oklch(83% 0.095 62); --color-accent-2-dim: oklch(83% 0.095 62 / 0.75);
-  --color-sage-1: oklch(48% 0.05 160); --color-sage-2: oklch(64% 0.06 160);
-  --color-day-ink: oklch(22% 0.022 268); --color-day-muted: oklch(38% 0.022 266); --color-fog: oklch(94% 0.012 70);
-  --color-well: oklch(95.5% 0.008 75); --color-well-2: oklch(92% 0.010 75); --color-well-ink: oklch(21% 0.016 268); --color-well-muted: oklch(47% 0.016 265); --color-well-rule: oklch(87.5% 0.009 75); --color-card: oklch(99.5% 0.003 75);
-  --glass: oklch(22% 0.018 268 / 0.58); --glass-blur: 22px;
-  --glass-hi: inset 0 1px 0 oklch(100% 0 0 / 0.10), inset 0 0 0 1px oklch(100% 0 0 / 0.06);
-  --shadow-card: 0 1px 0 oklch(100% 0 0 / 0.06) inset, 0 40px 80px -32px oklch(8% 0.02 268 / 0.7);
-  --shadow-watch: drop-shadow(0 18px 24px oklch(8% 0.02 268 / 0.45));
-  --shadow-tab: 0 1px 3px oklch(8% 0.02 268 / 0.3);
-  --row-split: oklch(100% 0 0 / 0.07); --inner: oklch(100% 0 0 / 0.05); --ghost: oklch(100% 0 0 / 0.04);
-  --hero-ghost: oklch(100% 0 0 / 0.55); --hero-ghost-edge: oklch(100% 0 0 / 0.8);
+  --color-paper: #000; --color-paper-2: #0a0a0a; --color-paper-3: #1a1a1a;
+  --color-ink: #ededed; --color-ink-2: #d4d4d4; --color-ink-hover: #cfcfcf; --color-muted: #a1a1a1;
+  --color-rule: #242424; --color-rule-2: #333;
+  --color-accent: #0a72ef; --color-accent-ink: #52a8ff; --color-accent-soft: rgb(10 114 239 / 0.16); --color-focus: #52a8ff;
+  --color-amber: #f5a524;
+  --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.8);
+  --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.5));
 
-  /* The watch drawn beside the example chat. */
-  --watch-case: oklch(33% 0.006 165); --watch-bezel: oklch(41% 0.006 165); --watch-face: oklch(23% 0.005 165); --watch-screen: oklch(15% 0.008 170);
-  --watch-track: oklch(28% 0.02 170); --watch-button: oklch(54% 0.006 165); --watch-start: oklch(56% 0.15 32); --watch-ink: oklch(97% 0.004 165); --watch-label: oklch(76% 0.025 170); --watch-ring: oklch(80% 0.07 160);
+  /* The watch stays a dark watch in both themes. */
+  --case: #1c1c1c; --watch-bezel: #2e2e2e; --watch-face: #141414; --screen: #000; --watch-track: #1d2633;
+  --watch-button: #3d3d3d; --watch-start: #e5484d; --screen-ink: #fff; --watch-label: #a1a1a1; --watch-ring: #52a8ff;
 
-  --font-display: Geist, "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif; --font-body: Geist, "Segoe UI", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-mono: "Geist Mono", ui-monospace, Consolas, monospace;
-  --radius-card: 18px; --radius-inner: 10px; --radius-pill: 999px; --rule-hair: 1px;
-  --tracking-display: -0.035em; --display-weight: 500;
+  --font-display: Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; --font-body: var(--font-display);
+  --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
+  --radius-card: 12px; --radius-inner: 8px; --radius-pill: 999px;
+  --tracking-display: -0.045em; --display-weight: 600;
 
-  /* Pons's own names. The charts and the dotted bridge (main.js reads --ink and --accent) use these. */
-  --bg: var(--color-paper); --card: var(--color-paper-2); --ink: var(--color-ink); --muted: var(--color-muted);
-  --line: var(--color-rule); --line-strong: var(--color-rule-2); --chip: var(--color-paper-3);
-  --accent: var(--color-accent); --soft: var(--color-accent-soft); --mid: var(--color-sage-1); --build: var(--color-sage-2); --low: var(--color-accent-2-dim);
-  --case: var(--watch-case); --screen: var(--watch-screen); --screen-ink: var(--watch-ink);
+  /* Short names. The charts and the dotted bridge (main.js reads --ink and --accent) use these. */
+  --ink: var(--color-ink); --muted: var(--color-muted); --line: var(--color-rule);
+  --accent: var(--color-accent-ink); --mid: #3d3d3d; --build: #2563b5; --low: color-mix(in srgb, var(--color-amber) 70%, transparent); --chip: var(--color-paper-3);
 }
 
-/* Day: the same hour in daylight. Bone paper, slate ink, a deeper sage. */
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --color-paper: oklch(95.5% 0.008 75); --color-paper-2: oklch(99.5% 0.003 75); --color-paper-3: oklch(92% 0.010 75);
-    --color-ink: oklch(22% 0.022 268); --color-ink-2: oklch(32% 0.02 266); --color-muted: oklch(47% 0.016 265);
-    --color-rule: oklch(87.5% 0.009 75); --color-rule-2: oklch(80% 0.010 75);
-    --color-accent: oklch(50% 0.09 165); --color-accent-ink: oklch(99% 0.003 165); --color-accent-hi: oklch(44% 0.09 165);
-    --color-accent-soft: oklch(50% 0.09 165 / 0.10); --color-focus: oklch(50% 0.09 165);
-    --color-accent-2: oklch(64% 0.12 55); --color-accent-2-dim: oklch(78% 0.09 60);
-    --color-sage-1: oklch(84% 0.04 160); --color-sage-2: oklch(70% 0.06 160);
-    --glass: oklch(99.5% 0.003 75 / 0.66);
-    --glass-hi: inset 0 1px 0 oklch(100% 0 0 / 0.9), inset 0 0 0 1px oklch(22% 0.022 268 / 0.06);
-    --shadow-card: 0 1px 0 oklch(100% 0 0 / 0.9) inset, 0 40px 80px -36px oklch(22% 0.022 268 / 0.28);
-    --shadow-watch: drop-shadow(0 18px 24px oklch(22% 0.022 268 / 0.25));
-    --shadow-tab: 0 1px 3px oklch(22% 0.022 268 / 0.12);
-    --row-split: oklch(22% 0.022 268 / 0.08); --inner: oklch(22% 0.022 268 / 0.04); --ghost: oklch(99.5% 0.003 75); --color-well: oklch(91% 0.010 75); --color-well-rule: oklch(84% 0.010 75);
+    --color-paper: #fff; --color-paper-2: #fafafa; --color-paper-3: #f0f0f0;
+    --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #666;
+    --color-rule: #ebebeb; --color-rule-2: #d9d9d9;
+    --color-accent: #006bff; --color-accent-ink: #005ff2; --color-accent-soft: rgb(0 107 255 / 0.1); --color-focus: #006bff;
+    --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.16);
+    --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22));
+    --accent: var(--color-accent); --mid: #d4d4d4; --build: #8cbcff;
   }
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-paper: oklch(95.5% 0.008 75); --color-paper-2: oklch(99.5% 0.003 75); --color-paper-3: oklch(92% 0.010 75);
-  --color-ink: oklch(22% 0.022 268); --color-ink-2: oklch(32% 0.02 266); --color-muted: oklch(47% 0.016 265);
-  --color-rule: oklch(87.5% 0.009 75); --color-rule-2: oklch(80% 0.010 75);
-  --color-accent: oklch(50% 0.09 165); --color-accent-ink: oklch(99% 0.003 165); --color-accent-hi: oklch(44% 0.09 165);
-  --color-accent-soft: oklch(50% 0.09 165 / 0.10); --color-focus: oklch(50% 0.09 165);
-  --color-accent-2: oklch(64% 0.12 55); --color-accent-2-dim: oklch(78% 0.09 60);
-  --color-sage-1: oklch(84% 0.04 160); --color-sage-2: oklch(70% 0.06 160);
-  --glass: oklch(99.5% 0.003 75 / 0.66);
-  --glass-hi: inset 0 1px 0 oklch(100% 0 0 / 0.9), inset 0 0 0 1px oklch(22% 0.022 268 / 0.06);
-  --shadow-card: 0 1px 0 oklch(100% 0 0 / 0.9) inset, 0 40px 80px -36px oklch(22% 0.022 268 / 0.28);
-  --shadow-watch: drop-shadow(0 18px 24px oklch(22% 0.022 268 / 0.25));
-  --shadow-tab: 0 1px 3px oklch(22% 0.022 268 / 0.12);
-  --row-split: oklch(22% 0.022 268 / 0.08); --inner: oklch(22% 0.022 268 / 0.04); --ghost: oklch(99.5% 0.003 75); --color-well: oklch(91% 0.010 75); --color-well-rule: oklch(84% 0.010 75);
+  --color-paper: #fff; --color-paper-2: #fafafa; --color-paper-3: #f0f0f0;
+  --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #666;
+  --color-rule: #ebebeb; --color-rule-2: #d9d9d9;
+  --color-accent: #006bff; --color-accent-ink: #005ff2; --color-accent-soft: rgb(0 107 255 / 0.1); --color-focus: #006bff;
+  --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.16);
+  --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22));
+  --accent: var(--color-accent); --mid: #d4d4d4; --build: #8cbcff;
 }

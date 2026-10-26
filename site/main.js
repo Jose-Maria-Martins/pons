@@ -96,14 +96,6 @@ for (const b of document.querySelectorAll("[data-copy]")) {
 
 showExample(document.querySelector(".seg [aria-selected=true]").dataset.q);
 
-// The header is clear over the top of the hero photograph, and turns to glass once the page scrolls.
-(() => {
-  const top = document.querySelector(".top");
-  const check = () => top.classList.toggle("scrolled", scrollY >= top.offsetHeight);
-  addEventListener("scroll", check, { passive: true });
-  check();
-})();
-
 // The crossing: a suspension bridge drawn in dots, with made-up readings crossing from the watch to the AI.
 (() => {
   const box = document.querySelector("#crossing .crossing-in");
@@ -181,7 +173,7 @@ showExample(document.querySelector(".seg [aria-selected=true]").dataset.q);
   function spawn(born) {
     const [label, value] = readings[spawned++ % readings.length];
     const el = document.createElement("div");
-    el.className = "packet glass";
+    el.className = "packet";
     el.innerHTML = `<b>${value}</b>${label}`;
     lane.append(el);
     live.push({ el, born });
