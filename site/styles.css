@@ -57,9 +57,9 @@
 .hour { position: absolute; inset: 0; }
 .hour > img { object-position: 60% 55%; }
 .hour::after { content: ""; position: absolute; inset: 0; z-index: 1; background: radial-gradient(ellipse 44% 52% at 75% 48%, color-mix(in oklab, var(--color-fog) 78%, transparent), transparent 80%), linear-gradient(to bottom, color-mix(in oklab, var(--color-fog) 72%, transparent), color-mix(in oklab, var(--color-fog) 40%, transparent) 9%, transparent 18%, transparent 72%, var(--color-paper)); }
-.hero-in { position: relative; z-index: var(--z-base); display: grid; grid-template-columns: minmax(0, 8fr) minmax(0, 4fr); grid-template-areas: "stage words"; gap: var(--gap-columns); align-items: center; }
+.hero-in { position: relative; z-index: var(--z-base); display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); grid-template-areas: "stage words"; gap: var(--gap-columns); align-items: center; }
 .words { grid-area: words; color: var(--color-day-ink); }
-.words h1 { max-width: 12ch; font-size: var(--text-display-s); }
+.words h1 { max-width: 12ch; }
 .lede { margin-top: var(--space-lg); font-size: var(--text-lead); line-height: 1.45; color: var(--color-day-muted); max-width: 30ch; }
 .words .cta { margin-top: var(--space-xl); }
 .words .btn:not(.primary) { border-color: var(--hero-ghost-edge); background: var(--hero-ghost); color: var(--color-day-ink); }
