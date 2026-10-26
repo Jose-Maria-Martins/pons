@@ -33,6 +33,9 @@ tabs(document.querySelector(".seg"), (b) => showExample(b.dataset.q));
 const pickApp = tabs(document.querySelector(".apps"), (b) => {
   for (const p of document.querySelectorAll(".panel")) p.hidden = p.id !== "p-" + b.dataset.p;
 });
+tabs(document.querySelector(".times"), (b) => {
+  for (const m of document.querySelectorAll(".moment")) m.hidden = m.id !== "m-" + b.dataset.p;
+});
 
 // "Add to Claude" opens Claude in a new tab and brings this page to the Claude steps; "Add to ChatGPT" opens the ChatGPT steps.
 for (const a of document.querySelectorAll("[data-app]")) {
@@ -58,9 +61,17 @@ for (const b of document.querySelectorAll("[data-copy]")) {
   });
 }
 
-showExample("sleep");
+showExample(document.querySelector(".seg [aria-selected=true]").dataset.q);
 
-// The hero bridge: a suspension bridge drawn in dots, with made-up readings crossing from the watch to the AI.
+// The header is clear over the top of the hero photograph, and turns to glass once the page scrolls.
+(() => {
+  const top = document.querySelector(".top");
+  const check = () => top.classList.toggle("on-photo", scrollY < top.offsetHeight);
+  addEventListener("scroll", check, { passive: true });
+  check();
+})();
+
+// The crossing: a suspension bridge drawn in dots, with made-up readings crossing from the watch to the AI.
 (() => {
   const box = document.querySelector("#crossing .crossing-in");
   const canvas = box.querySelector("canvas");

@@ -123,7 +123,7 @@ export const STRINGS: Record<Lang, Strings> = {
     storesH: "What Pons stores",
     storesItems: [
       "A Garmin login token (not your password), encrypted, in the connection that lets your AI app keep reading your data. It is kept for up to 90 days.",
-      'Your Garmin time zone (for example Europe/London), in the same connection, so "today" means your local date.',
+      'Your Garmin time zone (for example Europe/London), in the same connection, so “today” means your local date.',
       "If your account uses two-step verification, the half-finished sign-in, encrypted, for up to 10 minutes.",
       "Your language choice, if you pick one, in a cookie in your own browser for one year.",
       "Your light or dark choice, if you pick one, in your own browser. It is never sent to Pons.",
