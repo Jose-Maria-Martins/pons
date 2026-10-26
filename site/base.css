@@ -22,6 +22,5 @@ code { font-family: var(--font-mono); }
 :root[data-theme="dark"] .dark-only { display: inline; } :root[data-theme="dark"] .light-only { display: none; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .dark-only { display: inline; } :root:not([data-theme="light"]) .light-only { display: none; } }
 
-@media (max-width: 60rem) { :root { --gutter: 24px; --pad: 32px; } }
-@media (max-width: 40rem) { :root { --gutter: 16px; --pad: 20px; } }
+@media (max-width: 40rem) { :root { --gutter: 16px; --pad: 16px; } }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; } }

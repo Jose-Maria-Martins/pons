@@ -1,16 +1,16 @@
-/* Pons tokens, after Vercel's Geist system: a black or white page, grey hairlines, Geist set tight, and one blue for data, links and focus. */
+/* Pons tokens, after vercel.com (October 2026): a black or off-white page, Geist at a light weight set tight, wide open space, and one blue for data, links and focus. */
 /* Geist and Geist Mono 1.7.2 from Vercel's geist package, licensed under the OFL (fonts/OFL.txt). */
 @font-face { font-family: Geist; src: url(fonts/Geist-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 @font-face { font-family: "Geist Mono"; src: url(fonts/GeistMono-Variable.woff2) format("woff2"); font-weight: 100 900; font-display: swap; }
 :root {
   color-scheme: dark;
-  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px;
+  --space-3xs: 2px; --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px; --space-lg: 24px; --space-xl: 40px; --space-2xl: 64px; --space-3xl: 96px; --space-4xl: 144px; --space-5xl: 192px;
   --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem; --text-3xl: 2.441rem;
-  --text-display: clamp(2.75rem, 5vw + 1rem, 4.5rem); --text-display-s: clamp(2.25rem, 3.5vw + 1rem, 3.5rem);
-  --text-section: clamp(1.875rem, 1.5vw + 1.25rem, 2.5rem); --text-title: 1.5rem; --text-lead: clamp(1.125rem, 0.4vw + 1rem, 1.25rem);
+  --text-display: clamp(2.75rem, 3.5vw + 1.25rem, 4rem); --text-display-s: clamp(2.25rem, 3vw + 1rem, 3.5rem);
+  --text-section: clamp(2.25rem, 3vw + 1rem, 3.5rem); --text-title: clamp(1.5rem, 1vw + 1.125rem, 2rem); --text-statement: clamp(1.25rem, 0.6vw + 1rem, 1.5rem); --text-lead: clamp(1.125rem, 0.4vw + 1rem, 1.25rem);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1); --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
   --dur-micro: 120ms; --dur-short: 200ms; --dur-long: 420ms;
-  --container: 1080px; --gutter: 32px; --pad: 48px; --nav-h: 64px;
+  --container: 1232px; --gutter: 24px; --pad: 24px; --nav-h: 64px;
   --z-base: 1; --z-raised: 10; --z-sticky-nav: 300; --z-modal: 400;
 
   --color-paper: #000; --color-paper-2: #0a0a0a; --color-paper-3: #1a1a1a;
@@ -20,6 +20,7 @@
   --color-amber: #f5a524;
   --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.8);
   --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.5));
+  --glow: rgb(255 255 255 / 0.14);
 
   /* The watch stays a dark watch in both themes. */
   --case: #1c1c1c; --watch-bezel: #2e2e2e; --watch-face: #141414; --screen: #000; --watch-track: #1d2633;
@@ -27,8 +28,8 @@
 
   --font-display: Geist, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; --font-body: var(--font-display);
   --font-mono: "Geist Mono", ui-monospace, SFMono-Regular, Consolas, monospace;
-  --radius-card: 12px; --radius-inner: 8px; --radius-pill: 999px;
-  --tracking-display: -0.045em; --display-weight: 600;
+  --radius-card: 8px; --radius-inner: 6px; --radius-pill: 999px;
+  --tracking-display: -0.06em; --display-weight: 450;
 
   /* Short names. The charts and the dotted bridge (main.js reads --ink and --accent) use these. */
   --ink: var(--color-ink); --muted: var(--color-muted); --line: var(--color-rule);
@@ -38,22 +39,22 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     color-scheme: light;
-    --color-paper: #fff; --color-paper-2: #fafafa; --color-paper-3: #f0f0f0;
-    --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #666;
+    --color-paper: #fafafa; --color-paper-2: #fff; --color-paper-3: #f0f0f0;
+    --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #4d4d4d;
     --color-rule: #ebebeb; --color-rule-2: #d9d9d9;
     --color-accent: #006bff; --color-accent-ink: #005ff2; --color-accent-soft: rgb(0 107 255 / 0.1); --color-focus: #006bff;
     --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.16);
-    --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22));
+    --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22)); --glow: transparent;
     --accent: var(--color-accent); --mid: #d4d4d4; --build: #8cbcff;
   }
 }
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-paper: #fff; --color-paper-2: #fafafa; --color-paper-3: #f0f0f0;
-  --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #666;
+  --color-paper: #fafafa; --color-paper-2: #fff; --color-paper-3: #f0f0f0;
+  --color-ink: #171717; --color-ink-2: #2e2e2e; --color-ink-hover: #383838; --color-muted: #4d4d4d;
   --color-rule: #ebebeb; --color-rule-2: #d9d9d9;
   --color-accent: #006bff; --color-accent-ink: #005ff2; --color-accent-soft: rgb(0 107 255 / 0.1); --color-focus: #006bff;
   --shadow-frame: 0 24px 64px -24px rgb(0 0 0 / 0.16);
-  --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22));
+  --shadow-watch: drop-shadow(0 16px 24px rgb(0 0 0 / 0.22)); --glow: transparent;
   --accent: var(--color-accent); --mid: #d4d4d4; --build: #8cbcff;
 }

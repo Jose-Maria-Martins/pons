@@ -36,41 +36,37 @@
 <main class="page">
   <div class="hero">
     <div class="hero-in">
-      <h1>Ask your Garmin anything.</h1>
-      <p class="lede">Pons connects your Garmin to Claude or ChatGPT.</p>
-      <div class="cta">
-        <a class="btn primary" target="_blank" rel="noopener" data-app="claude" href="https://claude.ai/customize/connectors?modal=add-custom-connector&amp;connectorName=Pons&amp;connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp"><img src="img/claude.svg" alt="">Add to Claude</a>
-        <a class="btn" href="#setup" data-app="chatgpt"><img class="light-only" src="img/openai-black.svg" alt=""><img class="dark-only" src="img/openai-white.svg" alt="">Add to ChatGPT</a>
-      </div>
-      <p class="fine">Free. Works with any Garmin that syncs to Garmin Connect.</p>
-    </div>
-    <div class="demo">
-      <div class="demo-top">
-        <div class="seg" role="tablist" aria-label="Example questions">
-          <button role="tab" id="q-ready" aria-selected="true" aria-controls="chat" data-q="ready">Recovery</button>
-          <button role="tab" id="q-sleep" aria-selected="false" aria-controls="chat" data-q="sleep" tabindex="-1">Sleep</button>
-          <button role="tab" id="q-plan" aria-selected="false" aria-controls="chat" data-q="plan" tabindex="-1">Training</button>
+      <div class="hero-text">
+        <h1>Ask your Garmin anything.</h1>
+        <p class="lede">Pons connects your Garmin to Claude or ChatGPT.</p>
+        <div class="cta">
+          <a class="btn primary" target="_blank" rel="noopener" data-app="claude" href="https://claude.ai/customize/connectors?modal=add-custom-connector&amp;connectorName=Pons&amp;connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp"><img src="img/claude.svg" alt="">Add to Claude</a>
+          <a class="btn" href="#setup" data-app="chatgpt"><img class="light-only" src="img/openai-black.svg" alt=""><img class="dark-only" src="img/openai-white.svg" alt="">Add to ChatGPT</a>
         </div>
+        <p class="fine">Free. Works with any Garmin that syncs to Garmin Connect.</p>
       </div>
-      <div class="demo-in">
-        <div class="face">
-          <svg class="watch" viewBox="0 0 200 260" role="img" aria-label="A running watch showing the same number the AI talks about">
-            <rect x="62" y="0" width="76" height="70" rx="14" fill="var(--case)"/>
-            <rect x="62" y="190" width="76" height="70" rx="14" fill="var(--case)"/>
-            <rect x="18" y="98" width="10" height="22" rx="3" fill="var(--watch-button)"/><rect x="18" y="140" width="10" height="22" rx="3" fill="var(--watch-button)"/><rect x="172" y="88" width="10" height="20" rx="3" fill="var(--watch-button)"/><rect x="172" y="118" width="10" height="24" rx="3" fill="var(--watch-start)"/><rect x="172" y="152" width="10" height="20" rx="3" fill="var(--watch-button)"/>
-            <circle cx="100" cy="130" r="80" fill="var(--watch-bezel)"/>
-            <circle cx="100" cy="130" r="74" fill="var(--watch-face)"/>
-            <circle cx="100" cy="130" r="64" fill="var(--screen)"/>
-            <circle cx="100" cy="130" r="56" fill="none" stroke="var(--watch-track)" stroke-width="6"/>
-            <circle class="ring" id="w-ring" cx="100" cy="130" r="56" fill="none" stroke="var(--watch-ring)" stroke-width="6" stroke-linecap="round" stroke-dasharray="351.9" stroke-dashoffset="70" transform="rotate(-90 100 130)"/>
-            <text class="wl" id="w-top" x="100" y="112" text-anchor="middle">HRV</text>
-            <text class="wv" id="w-val" x="100" y="142" text-anchor="middle">62</text>
-            <text class="wl" id="w-bot" x="100" y="160" text-anchor="middle">ms, balanced</text>
-          </svg>
-        </div>
-        <div class="chat" id="chat" role="tabpanel" aria-live="polite"></div>
+      <div class="face">
+        <svg class="watch" viewBox="0 0 200 260" role="img" aria-label="A running watch showing the same number the AI talks about">
+          <rect x="62" y="0" width="76" height="70" rx="14" fill="var(--case)"/>
+          <rect x="62" y="190" width="76" height="70" rx="14" fill="var(--case)"/>
+          <rect x="18" y="98" width="10" height="22" rx="3" fill="var(--watch-button)"/><rect x="18" y="140" width="10" height="22" rx="3" fill="var(--watch-button)"/><rect x="172" y="88" width="10" height="20" rx="3" fill="var(--watch-button)"/><rect x="172" y="118" width="10" height="24" rx="3" fill="var(--watch-start)"/><rect x="172" y="152" width="10" height="20" rx="3" fill="var(--watch-button)"/>
+          <circle cx="100" cy="130" r="80" fill="var(--watch-bezel)"/>
+          <circle cx="100" cy="130" r="74" fill="var(--watch-face)"/>
+          <circle cx="100" cy="130" r="64" fill="var(--screen)"/>
+          <circle cx="100" cy="130" r="56" fill="none" stroke="var(--watch-track)" stroke-width="6"/>
+          <circle class="ring" id="w-ring" cx="100" cy="130" r="56" fill="none" stroke="var(--watch-ring)" stroke-width="6" stroke-linecap="round" stroke-dasharray="351.9" stroke-dashoffset="70" transform="rotate(-90 100 130)"/>
+          <text class="wl" id="w-top" x="100" y="112" text-anchor="middle">HRV</text>
+          <text class="wv" id="w-val" x="100" y="142" text-anchor="middle">62</text>
+          <text class="wl" id="w-bot" x="100" y="160" text-anchor="middle">ms, balanced</text>
+        </svg>
+      </div>
+      <div class="seg" role="tablist" aria-label="Example questions" aria-orientation="vertical">
+        <button role="tab" id="q-ready" aria-selected="true" aria-controls="chat" data-q="ready">Recovery</button>
+        <button role="tab" id="q-sleep" aria-selected="false" aria-controls="chat" data-q="sleep" tabindex="-1">Sleep</button>
+        <button role="tab" id="q-plan" aria-selected="false" aria-controls="chat" data-q="plan" tabindex="-1">Training</button>
       </div>
     </div>
+    <div class="demo"><div class="chat" id="chat" role="tabpanel" aria-live="polite"></div></div>
   </div>
 
   <section class="crossing" id="crossing">

@@ -35,7 +35,7 @@ const pickExample = tabs(seg, (b) => showExample(b.dataset.q));
 // The hero example moves on by itself every few seconds, until someone picks a tab. It waits while the pointer or focus is on it.
 (() => {
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const demo = seg.closest(".demo");
+  const demo = seg.closest(".hero");
   const order = [...seg.querySelectorAll("[role=tab]")].map((b) => b.dataset.q);
   let held = false;
   chat.setAttribute("aria-live", "off");
