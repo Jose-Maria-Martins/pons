@@ -66,7 +66,7 @@ showExample(document.querySelector(".seg [aria-selected=true]").dataset.q);
 // The header is clear over the top of the hero photograph, and turns to glass once the page scrolls.
 (() => {
   const top = document.querySelector(".top");
-  const check = () => top.classList.toggle("on-photo", scrollY < top.offsetHeight);
+  const check = () => top.classList.toggle("scrolled", scrollY >= top.offsetHeight);
   addEventListener("scroll", check, { passive: true });
   check();
 })();
