@@ -47,14 +47,13 @@
 .page > section::before { left: -6px; } .page > section::after { right: -6px; }
 .head { padding: var(--space-3xl) var(--pad) var(--space-2xl); }
 .head h2 { max-width: 20em; font-size: var(--text-section); letter-spacing: -0.04em; line-height: 1.15; }
-.head h2 span { color: var(--color-muted); }
 .head h3 { font-size: var(--text-title); letter-spacing: -0.03em; }
 .intro { max-width: 36em; margin-top: var(--space-sm); font-size: var(--text-lead); line-height: 1.5; color: var(--color-muted); }
 .intro a { color: var(--color-ink); }
 
 /* Hero: a faint grid, the words centred, the product rising out of the bottom edge. */
 .hero { position: relative; padding: var(--space-3xl) var(--pad) 0; text-align: center; }
-.hero::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(var(--color-rule) 1px, transparent 1px), linear-gradient(90deg, var(--color-rule) 1px, transparent 1px); background-size: 60px 60px; background-position: center -1px; -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%); pointer-events: none; }
+.hero::before { content: ""; position: absolute; inset: 0; background-image: linear-gradient(var(--color-rule) 1px, transparent 1px), linear-gradient(90deg, var(--color-rule) 1px, transparent 1px); background-size: 60px 60px; background-position: center -1px; -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, var(--color-ink) 30%, transparent 75%); mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, var(--color-ink) 30%, transparent 75%); pointer-events: none; }
 .hero-in { position: relative; display: grid; justify-items: center; }
 .hero h1 { max-width: 12ch; font-size: var(--text-display); letter-spacing: -0.05em; line-height: 1; }
 .lede { max-width: 34ch; margin-top: var(--space-lg); font-size: var(--text-lead); line-height: 1.5; color: var(--color-muted); }
@@ -63,7 +62,7 @@
 
 .demo { position: relative; margin-top: var(--space-2xl); border: 1px solid var(--color-rule); border-bottom: 0; border-radius: var(--radius-card) var(--radius-card) 0 0; background: var(--color-paper-2); box-shadow: var(--shadow-frame); text-align: left; }
 .demo-top { display: flex; align-items: center; justify-content: center; padding: var(--space-sm); border-bottom: 1px solid var(--color-rule); }
-.seg { display: inline-flex; gap: var(--space-3xs); padding: 3px; border: 1px solid var(--color-rule); border-radius: var(--radius-pill); background: var(--color-paper); }
+.seg { display: inline-flex; gap: var(--space-3xs); padding: var(--space-2xs); border: 1px solid var(--color-rule); border-radius: var(--radius-pill); background: var(--color-paper); }
 .seg button { height: 30px; padding: 0 var(--space-md); border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted); font: 500 var(--text-sm)/1 var(--font-body); cursor: pointer; transition: color var(--dur-micro) var(--ease-out), background-color var(--dur-micro) var(--ease-out); }
 .seg button:hover { color: var(--color-ink); }
 .seg [aria-selected="true"] { background: var(--color-paper-3); color: var(--color-ink); box-shadow: inset 0 0 0 1px var(--color-rule-2); }
