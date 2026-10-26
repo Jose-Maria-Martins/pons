@@ -29,7 +29,40 @@ function tabs(list, onPick) {
   }
   return (id) => pick(all.find((b) => (b.dataset.p || b.dataset.q) === id));
 }
-tabs(document.querySelector(".seg"), (b) => showExample(b.dataset.q));
+const seg = document.querySelector(".seg");
+const pickExample = tabs(seg, (b) => showExample(b.dataset.q));
+
+// The hero example moves on by itself every few seconds, until someone picks a tab. It waits while the pointer or focus is on it.
+(() => {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const demo = seg.closest(".demo");
+  const order = [...seg.querySelectorAll("[role=tab]")].map((b) => b.dataset.q);
+  let held = false;
+  chat.setAttribute("aria-live", "off");
+  // Hold the panel at its tallest example, so the page does not jump at each turn.
+  const fit = () => {
+    const now = seg.querySelector("[aria-selected=true]").dataset.q;
+    chat.style.minHeight = "";
+    let tallest = 0;
+    for (const q of order) { showExample(q); tallest = Math.max(tallest, chat.offsetHeight); }
+    showExample(now);
+    chat.style.minHeight = tallest + "px";
+  };
+  fit();
+  addEventListener("resize", fit);
+  const timer = setInterval(() => {
+    if (held || document.hidden) return;
+    const now = seg.querySelector("[aria-selected=true]").dataset.q;
+    pickExample(order[(order.indexOf(now) + 1) % order.length]);
+  }, 6000);
+  const stop = () => { clearInterval(timer); chat.setAttribute("aria-live", "polite"); };
+  seg.addEventListener("click", stop);
+  seg.addEventListener("keydown", stop);
+  demo.addEventListener("pointerenter", () => (held = true));
+  demo.addEventListener("pointerleave", () => (held = false));
+  demo.addEventListener("focusin", () => (held = true));
+  demo.addEventListener("focusout", () => (held = false));
+})();
 const pickApp = tabs(document.querySelector(".apps"), (b) => {
   for (const p of document.querySelectorAll(".panel")) p.hidden = p.id !== "p-" + b.dataset.p;
 });
