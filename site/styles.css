@@ -80,7 +80,7 @@
 .seg button:hover, .times button:hover, .apps button:hover { color: var(--color-ink); }
 .seg [aria-selected="true"], .times [aria-selected="true"], .apps [aria-selected="true"] { color: var(--color-ink); }
 .seg [aria-selected="true"]::before, .times [aria-selected="true"]::before, .apps [aria-selected="true"]::before { background: var(--color-accent); }
-.chat { display: flex; flex-direction: column; gap: var(--space-sm); min-height: 352px; padding: var(--space-lg) var(--space-lg) var(--space-sm) 92px; }
+.chat { display: flex; flex-direction: column; gap: var(--space-sm); min-height: 352px; padding: var(--space-lg) var(--space-lg) var(--space-lg) 92px; }
 .user { align-self: flex-end; max-width: 88%; padding: var(--space-xs) var(--space-md); border-radius: var(--radius-card); background: var(--inner); }
 .tool { align-self: flex-start; display: inline-flex; align-items: center; gap: var(--space-xs); padding: var(--space-2xs) var(--space-sm) var(--space-2xs) var(--space-2xs); border-radius: var(--radius-pill); background: var(--color-accent-soft); color: var(--color-accent); font-size: var(--text-xs); font-weight: 500; }
 .tool img { width: 18px; height: 18px; border-radius: var(--space-2xs); }
@@ -94,7 +94,6 @@
 .stats div + div { border-left: 1px solid var(--row-split); }
 .stats b { display: block; font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .stats span { display: block; font-size: var(--text-xs); line-height: 1.35; color: var(--color-muted); }
-.made { padding: 0 var(--space-lg) var(--space-md); font-size: var(--text-xs); color: var(--color-muted); text-align: right; }
 
 /* Sections */
 section { padding-top: var(--section-gap); }
@@ -266,8 +265,7 @@ html:not(.js) .panel + .panel { margin-top: var(--space-lg); }
   .hero-in { grid-template-columns: minmax(0, 1fr); grid-template-areas: "words" "stage"; gap: var(--space-2xl); }
   .stage { padding: 0 0 calc(var(--space-2xl) + var(--space-lg)); }
   .watch { left: auto; right: var(--space-2xs); bottom: 0; width: 130px; }
-  .chat { min-height: 0; padding-left: var(--space-lg); }
-  .made { padding-bottom: var(--space-2xl); text-align: left; }
+  .chat { min-height: 0; padding-left: var(--space-lg); padding-bottom: var(--space-2xl); }
   .crossing-in { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
   .crossing canvas { flex: 0 0 100%; height: 250px; }
   .bank { position: static; display: flex; width: auto; gap: var(--space-xs); margin-top: var(--space-xs); }
