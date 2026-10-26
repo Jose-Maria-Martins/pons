@@ -152,7 +152,7 @@ section { padding-top: var(--section-gap); }
 .times b { font-size: var(--text-lg); font-weight: 600; font-variant-numeric: tabular-nums; }
 .times span { grid-column: 2; font-size: var(--text-sm); color: var(--color-muted); }
 .pane { padding: var(--space-xl); border-radius: var(--radius-card); }
-.moment + .moment { margin-top: var(--space-2xl); }
+html:not(.js) .moment + .moment { margin-top: var(--space-2xl); }
 .moment h3 { max-width: none; }
 .ans { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--space-xl); margin-top: var(--space-lg); align-items: start; }
 .ans p { color: var(--color-muted); }
