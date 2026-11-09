@@ -92,15 +92,6 @@ CI only runs typecheck, lint and tests. Deploys happen with `npm run deploy`, or
 5. **Deploy:** `npm run deploy`.
 6. **Sign in once yourself:** in claude.ai go to Settings, Connectors, Add custom connector, and enter `https://<your-worker>/mcp`. Sign in to Garmin on the page that opens.
 
-### Branch previews
-
-With the repository connected to the Worker (Settings, Builds), every branch other than `main` gets a preview from `npx wrangler preview`. Previews take nothing from production: the `previews` block in `wrangler.jsonc` gives them their own KV namespace, rate-limit counters, dataset and the Turnstile test key. Set their secrets once, with a different `HASH_KEY` from production:
-
-```bash
-npx wrangler preview base-config secret put TURNSTILE_SECRET   # the test secret from .dev.vars.example
-npx wrangler preview base-config secret put HASH_KEY           # openssl rand -hex 32
-```
-
 ### Usage statistics
 
 `PONS_EVENTS` writes to the Analytics Engine dataset `pons_events` (created on first deploy). [`scripts/stats.sql`](../scripts/stats.sql) holds queries for users, calls per tool, calls per platform and per client app, and sign-in outcomes. The SQL API takes one query at a time, with an API token that has the Account Analytics Read permission:
