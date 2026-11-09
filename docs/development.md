@@ -75,7 +75,7 @@ curl -i -X POST http://localhost:8787/mcp                           # 401 withou
 
 ## Deploy
 
-Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run your own copy:
+CI only runs typecheck, lint and tests. Deploys happen with `npm run deploy`, or, once the repository is connected to the Worker in Cloudflare (Settings, Builds), on every push to `main`. To run your own copy:
 
 1. **Log in:** `npx wrangler login`.
 2. **Create the KV namespace** and put its id in `wrangler.jsonc` (replace the zeros under `kv_namespaces`):
@@ -91,6 +91,15 @@ Nothing here deploys by itself; CI only runs typecheck, lint and tests. To run y
    Keep `HASH_KEY` stable: changing it makes every user look like a new user and invalidates the rate-limit keys.
 5. **Deploy:** `npm run deploy`.
 6. **Sign in once yourself:** in claude.ai go to Settings, Connectors, Add custom connector, and enter `https://<your-worker>/mcp`. Sign in to Garmin on the page that opens.
+
+### Branch previews
+
+With the repository connected to the Worker (Settings, Builds), every branch other than `main` gets a preview from `npx wrangler preview`. Previews take nothing from production: the `previews` block in `wrangler.jsonc` gives them their own KV namespace, rate-limit counters, dataset and the Turnstile test key. Set their secrets once, with a different `HASH_KEY` from production:
+
+```bash
+npx wrangler preview base-config secret put TURNSTILE_SECRET   # the test secret from .dev.vars.example
+npx wrangler preview base-config secret put HASH_KEY           # openssl rand -hex 32
+```
 
 ### Usage statistics
 
