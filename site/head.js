@@ -1,5 +1,8 @@
 // Runs before the page paints, so neither the saved theme nor a repeat visit ever flashes.
 
+// Tells the stylesheet scripts run, so tabbed content can start with one panel showing.
+document.documentElement.classList.add("js");
+
 // The light/dark switch's saved choice. Without one, the page follows the system setting.
 try {
   const theme = localStorage.getItem("pons-theme");
