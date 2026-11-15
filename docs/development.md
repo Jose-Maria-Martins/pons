@@ -20,6 +20,7 @@ Your AI --OAuth + MCP--> Pons (Cloudflare Worker) --> Garmin Connect
 - **Refresh:** when your AI refreshes its Pons token, Pons also refreshes the Garmin token if it has under 3 hours left, so the connection keeps working. If Garmin refuses the refresh, the grant ends and your AI asks you to reconnect; if Garmin is only busy, the grant is kept and it tries again later.
 - **Abuse protection:** the sign-in page checks you are a person ([Cloudflare Turnstile](https://developers.cloudflare.com/turnstile/)) and limits attempts per IP and per email before it contacts Garmin. Each user gets 60 tool calls per minute.
 - **Usage counts:** Pons counts tool calls, connections and sign-in outcomes in Cloudflare Analytics Engine, with no health values, emails, names or tokens.
+- **Why Cloudflare Workers:** a remote server means nothing to install: you add one address and Pons works in your AI on your computer and your phone. Workers run it with no server to look after, Cloudflare's OAuth library handles the sign-in flow and encrypts what it stores, and because each request stands alone, it scales with Cloudflare.
 
 See [SECURITY.md](../SECURITY.md) for the threat model and [PRIVACY.md](../PRIVACY.md) for exactly what is collected and stored.
 
