@@ -115,4 +115,4 @@ Made by José Maria Martins. Say hi on [X](https://x.com/JoseMartiiins) or [Link
 
 ## Questions?
 
-Curious how Pons works, or want to run your own copy? Read [how Pons works](docs/development.md), or point your AI at this repository and ask it.
+Curious how Pons works, or want to run your own copy? Read [how Pons works](docs/development.md#how-it-works): the sign-in flow, where tokens are stored and why it runs on Cloudflare Workers. Or point your AI at this repository and ask it.
