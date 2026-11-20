@@ -51,3 +51,8 @@ npm run dev        # wrangler dev, needs .dev.vars (copy .dev.vars.example)
 
 - Work on a branch and open a PR before merging into `main`.
 - Keep PRs small and focused; describe what changed and how it was tested.
+
+## Commits and pull requests
+
+- José is the only author. Never add Claude as a co-author or committer: no `Co-Authored-By: Claude` trailer, no "Generated with Claude Code" line and no Claude session links in commits, pull request descriptions or comments.
+- Commit with José's git identity (`git config user.name` and `user.email`), never as "Claude".
