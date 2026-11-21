@@ -1,0 +1,34 @@
+# Pons
+
+> Pons is a free, read-only Garmin MCP server. It connects Garmin Connect to Claude, ChatGPT and other AI apps through MCP, so people can ask about their training, sleep and recovery in their own words.
+
+- MCP server URL (streamable HTTP, OAuth): https://pons.jose-maria-martins.workers.dev/mcp
+- Add to Claude in one click: https://claude.ai/customize/connectors?modal=add-custom-connector&connectorName=Pons&connectorUrl=https%3A%2F%2Fpons.jose-maria-martins.workers.dev%2Fmcp
+- Works with any Garmin that syncs to Garmin Connect.
+- Read-only: Pons can read Garmin data and cannot change anything in the Garmin account.
+- The Garmin password goes to Garmin once and is never stored or logged.
+- Made by José Maria Martins: https://portfolio.jose-maria-martins.workers.dev/
+
+## Tools
+
+- connection_status: is Garmin connected, which watch, and when it last synced
+- daily_overview: one day of steps, heart rate, stress, Body Battery, last night's sleep and HRV, training readiness
+- sleep_history: nightly sleep summaries for a date range
+- daily_trends: one row per day of steps, calories, resting heart rate, stress, Body Battery, intensity minutes and sleep time
+- sleep_night_detail: one night in detail: stages, score factors, overnight HRV, SpO2, respiration
+- hrv_history: nightly HRV with the 7-day average, baseline range and status
+- activities: workouts with distance, duration, pace or speed, heart rate, training effect and load
+- activity_detail: one workout with laps, heart rate and power zones, weather, and strength sets
+- training_status: training status and load, readiness, VO2 max, race predictions, endurance and hill score, fitness age, lactate threshold
+- body_composition: weight and body composition history
+- day_timeline: one day in 15-minute steps of heart rate, stress, Body Battery and steps
+- personal_records: fastest 5 km, longest run and other records
+- planned_workouts: workouts on the Garmin calendar, including training plans
+- disconnect: deletes the user's Pons connection and stored Garmin login
+
+## Docs
+
+- [README and setup for Claude, ChatGPT and Gemini](https://github.com/Jose-Maria-Martins/pons#readme)
+- [How Pons works](https://github.com/Jose-Maria-Martins/pons/blob/main/docs/development.md)
+- [Privacy: what Pons collects](https://github.com/Jose-Maria-Martins/pons/blob/main/PRIVACY.md)
+- [Security](https://github.com/Jose-Maria-Martins/pons/blob/main/SECURITY.md)
