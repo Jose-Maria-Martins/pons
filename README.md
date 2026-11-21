@@ -111,7 +111,7 @@ The first week, the Garmin Connect app amazed me. By the second, I was curious: 
 
 Pons is my answer. Connect your Garmin to your AI and turn all that data into something you can use: smarter training, better recovery, better sleep.
 
-Made by José Maria Martins. Say hi on [X](https://x.com/JoseMartiiins) or [LinkedIn](https://www.linkedin.com/in/josemsfmartins/).
+Made by [José Maria Martins](https://portfolio.jose-maria-martins.workers.dev/). Say hi on [X](https://x.com/JoseMartiiins) or [LinkedIn](https://www.linkedin.com/in/josemsfmartins/).
 
 ## Questions?
 

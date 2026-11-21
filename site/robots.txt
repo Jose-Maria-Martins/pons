@@ -1,0 +1,10 @@
+# Everyone is welcome to read and index the Pons landing page.
+# The sign-in, OAuth and MCP endpoints are for apps, not for indexing.
+User-agent: *
+Allow: /
+Disallow: /authorize
+Disallow: /token
+Disallow: /register
+Disallow: /mcp
+
+Sitemap: https://pons.jose-maria-martins.workers.dev/sitemap.xml
